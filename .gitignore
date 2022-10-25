@@ -1,0 +1,5 @@
+*.DS_STORE
+virtualenv
+.idea
+*.pyc
+*.cpython-38.pyc
