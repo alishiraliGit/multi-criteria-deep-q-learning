@@ -49,9 +49,10 @@ if __name__ == "__main__":
     plt.ylabel('Number of observations')
     plt.xlabel('Pareto set size (# of actions)')
     plt.title('Pareto-set size distribution')
-    plt.show()
 
     plt.savefig(os.path.join(fig_path_, exp_name_ + '_counts.pdf'))
+
+    plt.show()
 
     # Analyze accuracy of pareto set
     
