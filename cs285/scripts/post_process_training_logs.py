@@ -60,3 +60,5 @@ if __name__ == '__main__':
     plt.tight_layout()
 
     plt.savefig(os.path.join(save_path_, prefix_ + '_learning-curves.pdf'))
+
+    plt.show()

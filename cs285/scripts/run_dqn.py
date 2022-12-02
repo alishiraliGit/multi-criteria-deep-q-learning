@@ -41,7 +41,7 @@ class Args:
     def __contains__(self, key):
         return hasattr(self, key)
 
-    env_name = 'LunarLander-v3'  # 'CartPole-v1'
+    env_name = 'LunarLander-Sparse'  # 'CartPole-v1'
     exp_name = 'p0'
 
     ep_len = 200  # Env determines
