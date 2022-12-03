@@ -83,6 +83,7 @@ class RLEvaluator(object):
 
     def run_evaluation_loop(self, n_iter, collect_policy, eval_policy):
         # TODO: Hard-coded
+
         print_period = 1
 
         opt_actions = []

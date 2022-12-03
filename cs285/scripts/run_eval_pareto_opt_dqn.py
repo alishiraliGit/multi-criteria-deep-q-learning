@@ -8,7 +8,6 @@ from cs285.agents.dqn_agent import LoadedDQNAgent
 from cs285.agents.pareto_opt_agent import LoadedParetoOptDQNAgent
 
 # TODO: Get rid of Args() so pickle can load params!
-from run_dqn import Args
 
 
 class ParetoOptQEvaluator(object):

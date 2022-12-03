@@ -32,7 +32,7 @@ if __name__ == '__main__':
     os.makedirs(save_path_, exist_ok=True)
 
     # Find relevant files
-    prefix_ = 'p0_LunarLander'
+    prefix_ = 'test_customizable_ll'
     folder_paths_ = glob.glob(os.path.join(load_path_, prefix_ + '*'))
     file_paths_ = [glob.glob(os.path.join(f, 'events*'))[0] for f in folder_paths_]
 
@@ -59,6 +59,6 @@ if __name__ == '__main__':
 
     plt.tight_layout()
 
-    plt.savefig(os.path.join(save_path_, prefix_ + '_learning-curves.pdf'))
+    # plt.savefig(os.path.join(save_path_, prefix_ + '_learning-curves.pdf'))
 
     plt.show()

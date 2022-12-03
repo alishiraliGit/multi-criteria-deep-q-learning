@@ -1,5 +1,3 @@
-import numpy as np
-
 from cs285.agents.base_agent import BaseAgent
 from cs285.policies.pareto_opt_policy import ParetoOptimalPolicy
 from cs285.critics.pareto_opt_dqn_critic import ParetoOptDQNCritic

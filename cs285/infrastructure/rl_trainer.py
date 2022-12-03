@@ -52,6 +52,7 @@ class RL_Trainer(object):
         self.start_time = None
         self.log_video = None
         self.log_metrics = None
+        self.log_params = None
 
         #############
         # ENV
@@ -61,6 +62,10 @@ class RL_Trainer(object):
         register_custom_envs()
 
         self.env = gym.make(self.params['env_name'])
+
+        # Added by Ali
+        if params['env_name'] == 'LunarLander-Customizable' and params['env_rew_weights'] is not None:
+            self.env.set_rew_weights(params['env_rew_weights'])
 
         if self.params['video_log_freq'] > 0:
             self.episode_trigger = lambda episode: episode % self.params['video_log_freq'] == 0
@@ -162,6 +167,13 @@ class RL_Trainer(object):
             else:
                 self.log_metrics = False
 
+            # Added by Ali
+            # Decide if network parameters should be logged
+            if itr % self.params['params_log_freq'] == 0 and self.params['params_log_freq'] != -1:
+                self.log_params = True
+            else:
+                self.log_params = False
+
             # Collect trajectories, to be used for training
             # TODO: Fix: For single step trajectories, agent should be DQNAgent.
             if isinstance(self.agent, DQNAgent):
@@ -202,10 +214,12 @@ class RL_Trainer(object):
                 else:
                     self.perform_logging(itr, paths, eval_policy, train_video_paths, all_logs)
 
-                if self.params['save_params']:
-                    # self.agent.save('{}/agent_itr_{}.pt'.format(self.params['logdir'], itr))
+            if self.log_params:
+                if isinstance(self.agent, DQNAgent):
                     save_path = '{}/dqn_agent.pt'.format(self.params['logdir'])
                     self.agent.critic.save(save_path)
+                else:
+                    raise NotImplementedError
 
     ####################################
     ####################################

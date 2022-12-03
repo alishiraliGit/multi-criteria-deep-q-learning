@@ -2,7 +2,6 @@ import numpy as np
 
 from .base_critic import BaseCritic
 
-from cs285.infrastructure import pytorch_util as ptu
 from cs285.critics.dqn_critic import DQNCritic
 
 
@@ -15,7 +14,7 @@ class ParetoOptDQNCritic(BaseCritic):
         elif saved_dqn_critics_paths is not None:
             self.dqn_critics = [DQNCritic.load(f) for f in saved_dqn_critics_paths]
         else:
-            raise Exception('Neither DQN critics nor paths to DQN critic s provided!')
+            raise Exception('Neither DQN critics nor paths to DQN critic is provided!')
 
         # Check all critics have similar dimensions
         assert len(set([dqn_critic.ob_dim for dqn_critic in self.dqn_critics])) == 1
