@@ -2,7 +2,7 @@
 I recommend creating a new virtual environment for this project and
 install the requirements directly from [requirements.txt](requirements.txt).
 
-## Run
+## Training
 
 ### Customized rewards
 You can run DQN on LunarLander with customized rewards by specifying
@@ -64,3 +64,27 @@ python cs285/scripts/run_dqn.py \
 ```
 I recommend using postfix `_pruned` for `exp_name` 
 when you run PrunedDQN.
+
+
+## Evaluation
+To extract pruned action sets in trajectories of an optimal agent, run:
+```shell
+python cs285/scripts/run_eval_pareto_opt_dqn.py \
+--exp_name xxx_eval \
+--env_name LunarLander-Customizable \
+--pruning_file_prefix xxx_LunarLander-Customizable \
+--opt_file_prefix xxx_opt_LunarLander-Customizable \
+--env_rew_weights 0 0 0 0 1 \
+--seed 1
+```
+
+
+## Post-process and visualization
+Use [post_process_training_logs](cs285/scripts/post_process_training_logs.py) to visualize training logs.
+
+Use [post_process_eval_pareto_opt_dqn](cs285/scripts/post_process_eval_pareto_opt_dqn.py)
+to read the results of pareto action set evaluation.
+
+## Sample data
+Folder [data](data) has some sample runs with `exp_name=p1`. 
+Do not push your data unless we want them for the final report.

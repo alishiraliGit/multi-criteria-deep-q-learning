@@ -6,7 +6,7 @@ import argparse
 
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..'))
 
-from cs285.infrastructure.rl_trainer import RL_Trainer
+from cs285.infrastructure.rl_trainer import RLTrainer
 from cs285.agents.dqn_agent import DQNAgent
 from cs285.agents.pareto_opt_agent import LoadedParetoOptDQNAgent
 from cs285.infrastructure.dqn_utils import get_env_kwargs
@@ -68,11 +68,11 @@ def main():
         os.makedirs(data_path)
 
     if customize_rew:
-        logdir = args.exp_name + '_' + args.env_name + '_' + time.strftime('%d-%m-%Y_%H-%M-%S')
-    else:
         logdir = args.exp_name + '_' + args.env_name \
                  + '|'.join([str(w) for w in params['env_rew_weights']]) \
                  + '_' + time.strftime('%d-%m-%Y_%H-%M-%S')
+    else:
+        logdir = args.exp_name + '_' + args.env_name + '_' + time.strftime('%d-%m-%Y_%H-%M-%S')
 
     logdir = os.path.join(data_path, logdir)
     params['logdir'] = logdir
@@ -106,7 +106,7 @@ def main():
     params['agent_class'] = DQNAgent
     params['agent_params'] = params
 
-    rl_trainer = RL_Trainer(params)
+    rl_trainer = RLTrainer(params)
     rl_trainer.run_training_loop(
         params['num_timesteps'],
         collect_policy=rl_trainer.agent.actor,

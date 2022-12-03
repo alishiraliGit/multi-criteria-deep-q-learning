@@ -13,7 +13,7 @@ if __name__ == "__main__":
     data_path_ = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'data')
     fig_path_ = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'figs')
 
-    exp_name_ = 'eval_p0_LunarLander-Sparse'
+    exp_name_ = 'p1_eval_LunarLander-Customizable'
     folder_path_ = glob.glob(os.path.join(data_path_, exp_name_ + '*'))[0]
     file_path_ = os.path.join(folder_path_, 'actions.pkl')
 
@@ -60,7 +60,7 @@ if __name__ == "__main__":
     pareto_set_accuracy = [1 if y in x else 0 for x, y in zip(pareto_set, optimal_set)]
     pareto_mean_accuracy = statistics.mean(pareto_set_accuracy)*100
 
-    print(f'Overall {pareto_mean_accuracy}% of the pareto sets contain the action selected by the network trained using the correct reward function')
+    print(f'Overall {pareto_mean_accuracy} % of the pareto sets contain the action selected by the network trained using the correct reward function')
 
     # Create results df to analyze accuracy by pareto-set size
     results_dict = {"Pareto Set Size": pareto_sizes, "Includes optimal": pareto_set_accuracy}
@@ -72,5 +72,4 @@ if __name__ == "__main__":
     print("Mean and std of pareto set accuracy by pareto-set size")
 
     print(results_df_grouped_mean.head(6))
-    print(results_df_grouped_std.head(6)) 
-
+    print(results_df_grouped_std.head(6))

@@ -1,107 +1,105 @@
+import sys
 import os
 import time
 import glob
+import argparse
+
+sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..'))
 
 from cs285.infrastructure.rl_evaluator import RLEvaluator
-from cs285.infrastructure.dqn_utils import get_env_kwargs
 from cs285.agents.dqn_agent import LoadedDQNAgent
 from cs285.agents.pareto_opt_agent import LoadedParetoOptDQNAgent
-
-# TODO: Get rid of Args() so pickle can load params!
-
-
-class ParetoOptQEvaluator(object):
-
-    def __init__(self, params):
-        # Update params with env params
-        self.params = params
-
-        env_args = get_env_kwargs(params['env_name'])
-
-        for k, v in env_args.items():
-            if k not in self.params:
-                self.params[k] = v
-
-        # Ensure compatibility
-        self.params['train_batch_size'] = params['batch_size']
-        self.params['agent_params'] = self.params
-
-        # Load agents
-        self.opt_agent = LoadedDQNAgent(self.params['optimal_critic_file_path'])
-        self.pareto_opt_agent = LoadedParetoOptDQNAgent(self.params['other_critics_file_paths'])
-
-        # Init RLEvaluator
-        self.rl_evaluator = RLEvaluator(self.params)
-
-    def run_evaluation_loop(self):
-        return self.rl_evaluator.run_evaluation_loop(
-            self.params['num_timesteps'],
-            collect_policy=self.opt_agent.actor,
-            eval_policy=self.pareto_opt_agent.actor,
-            )
+from cs285.infrastructure.dqn_utils import get_env_kwargs
 
 
-class EvalArgs:
-    def __getitem__(self, key):
-        return getattr(self, key)
+def main():
+    ##################################
+    # Get arguments from input
+    ##################################
+    parser = argparse.ArgumentParser()
 
-    def __setitem__(self, key, val):
-        setattr(self, key, val)
+    parser.add_argument('--exp_name', type=str)
 
-    def __contains__(self, key):
-        return hasattr(self, key)
+    # Env
+    parser.add_argument('--env_name', type=str, default='LunarLander-Customizable')
+    parser.add_argument('--env_rew_weights', type=float, nargs='*', default=None)
 
-    env_name = 'LunarLander-Sparse'
-    exp_name = 'eval_p0'
+    # Batch size
+    parser.add_argument('--batch_size', type=int, default=1000)
+    parser.add_argument('--num_timesteps', type=int, default=100)
 
-    ep_len = 200  # Env determines
-
-    # Batches and steps
-    batch_size = 1000
-    num_timesteps = 100
+    # Path to saved models
+    parser.add_argument('--pruning_file_prefix', type=str, required=True)
+    parser.add_argument('--opt_file_prefix', type=str, required=True)
 
     # System
-    no_gpu = True
-    which_gpu = 0
-    seed = 1
+    parser.add_argument('--seed', type=int, default=1)
+    parser.add_argument('--no_gpu', action='store_true')
+    parser.add_argument('--which_gpu', '-gpu_id', default=0)
 
+    args = parser.parse_args()
 
-def init():
-    # Init params
-    args = EvalArgs()
+    # Convert to dictionary
+    params = vars(args)
 
-    # Create a logging directory
+    # Decision booleans
+    customize_rew = False if params['env_rew_weights'] is None else True
+
+    ##################################
+    # Create directory for logging
+    ##################################
     data_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../data')
 
     if not (os.path.exists(data_path)):
         os.makedirs(data_path)
 
-    logdir = args.exp_name + '_' + args.env_name + '_' + time.strftime('%d-%m-%Y_%H-%M-%S')
+    if customize_rew:
+        logdir = args.exp_name + '_' + args.env_name \
+                 + '|'.join([str(w) for w in params['env_rew_weights']]) \
+                 + '_' + time.strftime('%d-%m-%Y_%H-%M-%S')
+    else:
+        logdir = args.exp_name + '_' + args.env_name + '_' + time.strftime('%d-%m-%Y_%H-%M-%S')
+
     logdir = os.path.join(data_path, logdir)
-    args['logdir'] = logdir
-    if not(os.path.exists(logdir)):
+    params['logdir'] = logdir
+    if not (os.path.exists(logdir)):
         os.makedirs(logdir)
 
-    print("\n\n\nLOGGING TO: ", logdir, "\n\n\n")
+    print('\n\n\nLOGGING TO: ', logdir, '\n\n\n')
 
-    # Find loaded models' paths
-    prefix_opt = 'p0_LunarLander-1155'
-    folder_path_opt = glob.glob(os.path.join(data_path, prefix_opt + '*'))[0]
-    args['optimal_critic_file_path'] = os.path.join(folder_path_opt, 'dqn_agent.pt')
+    ##################################
+    # Get env specific arguments
+    ##################################
+    env_args = get_env_kwargs(params['env_name'])
 
-    prefix_others = 'p0_LunarLander'
-    folder_paths_others = glob.glob(os.path.join(data_path, prefix_others + '*'))
-    if folder_path_opt in folder_paths_others:
-        folder_paths_others.remove(folder_path_opt)
-    args['other_critics_file_paths'] = [os.path.join(f, 'dqn_agent.pt') for f in folder_paths_others]
+    for k, v in env_args.items():
+        # Don't overwrite the input arguments
+        if k not in params:
+            params[k] = v
 
-    # Init a trainer
-    evaluator = ParetoOptQEvaluator(args)
+    ##################################
+    # Load saved models
+    ##################################
+    pruning_folder_paths = glob.glob(os.path.join(data_path, params['pruning_file_prefix'] + '*'))
+    pruning_file_paths = [os.path.join(f, 'dqn_agent.pt') for f in pruning_folder_paths]
+    pruning_agent = LoadedParetoOptDQNAgent(file_paths=pruning_file_paths)
 
-    return evaluator
+    opt_folder_path = glob.glob(os.path.join(data_path, params['opt_file_prefix'] + '*'))[0]
+    opt_file_path = os.path.join(opt_folder_path, 'dqn_agent.pt')
+    opt_agent = LoadedDQNAgent(file_path=opt_file_path)
+
+    ##################################
+    # Run Q-learning
+    ##################################
+    params['agent_params'] = params
+
+    rl_evaluator = RLEvaluator(params)
+    rl_evaluator.run_evaluation_loop(
+        params['num_timesteps'],
+        collect_policy=opt_agent.actor,
+        eval_policy=pruning_agent.actor,
+    )
 
 
 if __name__ == '__main__':
-    evaluator_ = init()
-
-    opt_actions_, pareto_opt_actions_ = evaluator_.run_evaluation_loop()
+    main()

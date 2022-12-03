@@ -1,7 +1,7 @@
 import os
 import time
 
-from cs285.infrastructure.rl_trainer import RL_Trainer
+from cs285.infrastructure.rl_trainer import RLTrainer
 from cs285.agents.dqn_agent import DQNAgent
 from cs285.infrastructure.dqn_utils import get_env_kwargs
 
@@ -21,7 +21,7 @@ class QTrainer(object):
         self.params['train_batch_size'] = params['batch_size']  # Ensure compatibility
         self.params['agent_params'] = self.params
 
-        self.rl_trainer = RL_Trainer(self.params)
+        self.rl_trainer = RLTrainer(self.params)
 
     def run_training_loop(self):
         self.rl_trainer.run_training_loop(

@@ -45,6 +45,10 @@ class RLEvaluator(object):
 
         self.env = gym.make(self.params['env_name'])
 
+        # Added by Ali
+        if params['env_name'] == 'LunarLander-Customizable' and params['env_rew_weights'] is not None:
+            self.env.set_rew_weights(params['env_rew_weights'])
+
         self.episode_trigger = lambda episode: False
 
         if 'env_wrappers' in self.params:
@@ -83,7 +87,6 @@ class RLEvaluator(object):
 
     def run_evaluation_loop(self, n_iter, collect_policy, eval_policy):
         # TODO: Hard-coded
-
         print_period = 1
 
         opt_actions = []
@@ -113,6 +116,3 @@ class RLEvaluator(object):
             pickle.dump({'opt_actions': opt_actions, 'pareto_opt_actions': pareto_opt_actions}, f)
 
         return opt_actions, pareto_opt_actions
-
-
-

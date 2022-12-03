@@ -26,7 +26,7 @@ MAX_NVIDEO = 2
 MAX_VIDEO_LEN = 40  # we overwrite this in the code below
 
 
-class RL_Trainer(object):
+class RLTrainer(object):
 
     def __init__(self, params):
 
