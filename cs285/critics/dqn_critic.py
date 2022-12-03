@@ -1,11 +1,11 @@
-from .base_critic import BaseCritic
+import numpy as np
 import torch
 import torch.optim as optim
 from torch.nn import utils
 from torch import nn
 
 from cs285.infrastructure import pytorch_util as ptu
-from cs285.infrastructure.dqn_utils import get_env_kwargs
+from cs285.critics.base_critic import BaseCritic
 
 
 class DQNCritic(BaseCritic):
@@ -56,7 +56,6 @@ class DQNCritic(BaseCritic):
             Update the parameters of the critic.
             let sum_of_path_lengths be the sum of the lengths of the paths sampled from
                 Agent.sample_trajectories
-            let num_paths be the number of paths sampled from Agent.sample_trajectories
             arguments:
                 ob_no: shape: (sum_of_path_lengths, ob_dim)
                 next_ob_no: shape: (sum_of_path_lengths, ob_dim). The observation after taking one step forward
@@ -80,11 +79,9 @@ class DQNCritic(BaseCritic):
         qa_tp1_values = self.q_net_target(next_ob_no)
 
         if self.double_q:
-            # You must fill this part for Q2 of the Q-learning portion of the homework.
             # In double Q-learning, the best action is selected using the Q-network that
             # is being updated, but the Q-value for this action is obtained from the
-            # target Q-network. Please review Lecture 8 for more details,
-            # and page 4 of https://arxiv.org/pdf/1509.06461.pdf is also a good reference.
+            # target Q-network.
             ac_tp1 = self.q_net(next_ob_no).argmax(dim=1)
             q_tp1 = torch.gather(qa_tp1_values, 1, ac_tp1.unsqueeze(1)).squeeze(1)
         else:
@@ -102,6 +99,7 @@ class DQNCritic(BaseCritic):
         loss.backward()
         utils.clip_grad_value_(self.q_net.parameters(), self.grad_norm_clipping)
         self.optimizer.step()
+        self.learning_rate_scheduler.step()
 
         return {
             'Training Loss': ptu.to_numpy(loss),
@@ -133,6 +131,114 @@ class DQNCritic(BaseCritic):
         checkpoint = torch.load(load_path)
 
         dqn_critic = DQNCritic(
+            hparams=checkpoint['hparams'],
+            optimizer_spec=checkpoint['optimizer_spec']
+        )
+
+        dqn_critic.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+
+        dqn_critic.q_net.load_state_dict(checkpoint['q_net_state_dict'])
+        dqn_critic.q_net_target.load_state_dict(checkpoint['q_net_target_state_dict'])
+
+        return dqn_critic
+
+
+class PrunedDQNCritic(DQNCritic):
+
+    def __init__(self, hparams, optimizer_spec, action_pruner=None, **kwargs):
+        super().__init__(hparams, optimizer_spec, **kwargs)
+
+        # Pruning
+        self.action_pruner = action_pruner
+
+    def update(self, ob_no, ac_na, next_ob_no, reward_n, terminal_n):
+        """
+            Update the parameters of the critic.
+            let sum_of_path_lengths be the sum of the lengths of the paths sampled from
+                Agent.sample_trajectories
+            arguments:
+                ob_no: shape: (sum_of_path_lengths, ob_dim)
+                next_ob_no: shape: (sum_of_path_lengths, ob_dim). The observation after taking one step forward
+                reward_n: length: sum_of_path_lengths. Each element in reward_n is a scalar containing
+                    the reward for each timestep
+                terminal_n: length: sum_of_path_lengths. Each element in terminal_n is either 1 if the episode ended
+                    at that timestep of 0 if the episode did not end
+            returns:
+                nothing
+        """
+        ob_no = ptu.from_numpy(ob_no)
+        ac_na = ptu.from_numpy(ac_na).to(torch.long)
+        next_ob_no = ptu.from_numpy(next_ob_no)
+        reward_n = ptu.from_numpy(reward_n)
+        terminal_n = ptu.from_numpy(terminal_n)
+
+        qa_t_values = self.q_net(ob_no)
+        q_t_values = torch.gather(qa_t_values, 1, ac_na.unsqueeze(1)).squeeze(1)
+
+        # Compute the Q-values from the target network
+        qa_tp1_target_values = self.q_net_target(next_ob_no)
+
+        # Get the pruned action set
+        choose_from_pruned = False if self.action_pruner is None else True
+        if choose_from_pruned:
+            available_actions = [self.action_pruner.get_action(ptu.to_numpy(ob)) for ob in ob_no]
+
+        if self.double_q:
+            # In double Q-learning, the best action is selected using the Q-network that
+            # is being updated, but the Q-value for this action is obtained from the
+            # target Q-network.
+
+            qa_tp1_values = self.q_net(next_ob_no)
+
+            if choose_from_pruned:
+                ac_tp1 = self.get_maximizer_from_available_actions(qa_tp1_values, available_actions)
+            else:
+                ac_tp1 = qa_tp1_values.argmax(dim=1)
+
+        else:
+            if choose_from_pruned:
+                ac_tp1 = self.get_maximizer_from_available_actions(qa_tp1_target_values, available_actions)
+            else:
+                ac_tp1 = qa_tp1_target_values.argmax(dim=1)
+
+        q_tp1 = torch.gather(qa_tp1_target_values, 1, ac_tp1.unsqueeze(1)).squeeze(1)
+
+        # Compute targets for minimizing Bellman error
+        # currentReward + self.gamma * qValuesOfNextTimestep * (not terminal)
+        target = reward_n + self.gamma * q_tp1 * (1 - terminal_n)
+        target = target.detach()
+
+        assert q_t_values.shape == target.shape
+        loss = self.loss(q_t_values, target)
+
+        self.optimizer.zero_grad()
+        loss.backward()
+        utils.clip_grad_value_(self.q_net.parameters(), self.grad_norm_clipping)
+        self.optimizer.step()
+        self.learning_rate_scheduler.step()
+
+        return {
+            'Training Loss': ptu.to_numpy(loss),
+        }
+
+    @staticmethod
+    def get_maximizer_from_available_actions(values_na: torch.tensor, acs_list_n) -> torch.tensor:
+        """
+        For each row of qa_values, returns the maximizer action from the corresponding available actions.
+        @param values_na: [n x a] tensor
+        @param acs_list_n: list (len n) of list of available actions
+        """
+        values_na = ptu.to_numpy(values_na)
+
+        return ptu.from_numpy(np.array(
+            [acs_list_n[idx][vals[acs_list_n[idx]].argmax()] for idx, vals in enumerate(values_na)]
+        )).to(torch.int64)
+
+    @staticmethod
+    def load(load_path):
+        checkpoint = torch.load(load_path)
+
+        dqn_critic = PrunedDQNCritic(
             hparams=checkpoint['hparams'],
             optimizer_spec=checkpoint['optimizer_spec']
         )

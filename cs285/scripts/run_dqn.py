@@ -1,12 +1,14 @@
 import sys
 import os
 import time
+import glob
 import argparse
 
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..'))
 
 from cs285.infrastructure.rl_trainer import RL_Trainer
 from cs285.agents.dqn_agent import DQNAgent
+from cs285.agents.pareto_opt_agent import LoadedParetoOptDQNAgent
 from cs285.infrastructure.dqn_utils import get_env_kwargs
 
 
@@ -14,7 +16,6 @@ def main():
     ##################################
     # Get arguments from input
     ##################################
-
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--exp_name', type=str)
@@ -34,6 +35,9 @@ def main():
     # Q-learning params
     parser.add_argument('--double_q', action='store_true')
 
+    # Pruning
+    parser.add_argument('--pruning_file_prefix', type=str, default=None)
+
     # System
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--no_gpu', action='store_true')
@@ -51,16 +55,25 @@ def main():
 
     params['train_batch_size'] = params['batch_size']  # Ensure compatibility
 
+    # Decision booleans
+    customize_rew = False if params['env_rew_weights'] is None else True
+    prune = False if params['pruning_file_prefix'] is None else True
+
     ##################################
     # Create directory for logging
     ##################################
-
     data_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../data')
 
     if not (os.path.exists(data_path)):
         os.makedirs(data_path)
 
-    logdir = args.exp_name + '_' + args.env_name + '_' + time.strftime('%d-%m-%Y_%H-%M-%S')
+    if customize_rew:
+        logdir = args.exp_name + '_' + args.env_name + '_' + time.strftime('%d-%m-%Y_%H-%M-%S')
+    else:
+        logdir = args.exp_name + '_' + args.env_name \
+                 + '|'.join([str(w) for w in params['env_rew_weights']]) \
+                 + '_' + time.strftime('%d-%m-%Y_%H-%M-%S')
+
     logdir = os.path.join(data_path, logdir)
     params['logdir'] = logdir
     if not(os.path.exists(logdir)):
@@ -77,6 +90,15 @@ def main():
         # Don't overwrite the input arguments
         if k not in params:
             params[k] = v
+
+    ##################################
+    # Pruning (if requested)
+    ##################################
+    if prune:
+        pruning_folder_paths = glob.glob(os.path.join(data_path, params['pruning_file_prefix'] + '*'))
+        pruning_file_paths = [os.path.join(f, 'dqn_agent.pt') for f in pruning_folder_paths]
+        pruning_agent = LoadedParetoOptDQNAgent(file_paths=pruning_file_paths)
+        params['action_pruner'] = pruning_agent.actor
 
     ##################################
     # Run Q-learning

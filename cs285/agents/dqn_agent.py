@@ -3,7 +3,7 @@ import numpy as np
 from cs285.infrastructure.dqn_utils import MemoryOptimizedReplayBuffer, PiecewiseSchedule
 from cs285.agents.base_agent import BaseAgent
 from cs285.policies.argmax_policy import ArgMaxPolicy
-from cs285.critics.dqn_critic import DQNCritic
+from cs285.critics.dqn_critic import DQNCritic, PrunedDQNCritic
 
 
 class DQNAgent(object):
@@ -24,8 +24,15 @@ class DQNAgent(object):
         self.exploration = agent_params['exploration_schedule']
         self.optimizer_spec = agent_params['optimizer_spec']
 
+        # Pruning
+        prune = True if 'action_pruner' in agent_params else False
+
         # Actor/Critic
-        self.critic = DQNCritic(agent_params, self.optimizer_spec)
+        if prune:
+            self.critic = PrunedDQNCritic(agent_params, self.optimizer_spec, agent_params['action_pruner'])
+        else:
+            self.critic = DQNCritic(agent_params, self.optimizer_spec)
+
         self.actor = ArgMaxPolicy(self.critic)
 
         # Replay buffer
