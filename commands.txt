@@ -1,0 +1,5 @@
+python cs285/scripts/run_dqn.py \
+--exp_name test_customizable_ll \
+--env_name LunarLander-Customizable \
+--env_rew_weights 1 1 2.5 3 1.5 \
+--double_q --seed 1
