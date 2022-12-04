@@ -26,7 +26,7 @@ def main():
 
     # Batch size
     parser.add_argument('--batch_size', type=int, default=1000)
-    parser.add_argument('--num_timesteps', type=int, default=100)
+    parser.add_argument('--num_traj', type=int, default=100)
 
     # Path to saved models
     parser.add_argument('--pruning_file_prefix', type=str, required=True)
@@ -95,7 +95,7 @@ def main():
 
     rl_evaluator = RLEvaluator(params)
     rl_evaluator.run_evaluation_loop(
-        params['num_timesteps'],
+        params['num_traj'],
         collect_policy=opt_agent.actor,
         eval_policy=pruning_agent.actor,
     )

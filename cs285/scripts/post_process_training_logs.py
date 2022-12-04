@@ -32,7 +32,7 @@ if __name__ == '__main__':
     os.makedirs(save_path_, exist_ok=True)
 
     # Find relevant files
-    prefix_ = 'p1_default'
+    prefix_ = 'p2_pruned_sparse'  # 'p2_eps1e-2_pruned_sparse'
     folder_paths_ = glob.glob(os.path.join(load_path_, prefix_ + '*'))
     file_paths_ = [glob.glob(os.path.join(f, 'events*'))[0] for f in folder_paths_]
 
