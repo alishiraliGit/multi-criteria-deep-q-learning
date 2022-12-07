@@ -69,15 +69,21 @@ class ParetoOptimalPolicy(object):
         else:
             return pareto_actions
 
-    def get_action(self, obs):
-        if len(obs.shape) > 3:
-            observation = obs
-        else:
-            observation = obs[None]
+    def get_action(self, obs: np.ndarray):
+        if obs.ndim < 2:
+            obs = obs[np.newaxis, :]
 
-        qa_values_ac: np.ndarray = self.critic.qa_values(observation)[0]
+        qa_values_ac: np.ndarray = self.critic.qa_values(obs)[0]
 
         return self.find_strong_pareto_optimal_actions(qa_values_ac, self.eps)
+
+    def get_actions(self, ob_no: np.ndarray):
+        if ob_no.ndim < 2:
+            ob_no = ob_no[np.newaxis, :]
+
+        qa_values_nac: np.ndarray = self.critic.qa_values(ob_no)
+
+        return [self.find_strong_pareto_optimal_actions(vals, self.eps) for vals in qa_values_nac]
 
 
 if __name__ == '__main__':

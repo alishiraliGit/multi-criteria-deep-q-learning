@@ -181,8 +181,9 @@ class PrunedDQNCritic(DQNCritic):
 
         # Get the pruned action set
         choose_from_pruned = False if self.action_pruner is None else True
+
         if choose_from_pruned:
-            available_actions = [self.action_pruner.get_action(ptu.to_numpy(ob)) for ob in ob_no]
+            available_actions = self.action_pruner.get_actions(ptu.to_numpy(ob_no))
 
         if self.double_q:
             # In double Q-learning, the best action is selected using the Q-network that

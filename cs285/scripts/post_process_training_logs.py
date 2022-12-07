@@ -32,7 +32,7 @@ if __name__ == '__main__':
     os.makedirs(save_path_, exist_ok=True)
 
     # Find relevant files
-    prefix_ = 'p4_*_pruned_sparse'
+    prefix_ = 'p4_test'
     folder_paths_ = glob.glob(os.path.join(load_path_, prefix_ + '*'))
     file_paths_ = [glob.glob(os.path.join(f, 'events*'))[0] for f in folder_paths_]
 
@@ -43,14 +43,15 @@ if __name__ == '__main__':
     x_tag_ = 'Train_EnvstepsSoFar'
     y_tag_ = 'Train_AverageReturn'
 
-    xs_ = np.array([get_section_results(f, [x_tag_])[x_tag_] for f in file_paths_])[:, :-1]
+    xs_ = [get_section_results(f, [x_tag_])[x_tag_][:-1] for f in file_paths_]
 
-    ys_ = np.array([get_section_results(f, [y_tag_])[y_tag_] for f in file_paths_])
+    ys_ = [get_section_results(f, [y_tag_])[y_tag_] for f in file_paths_]
 
     # Plot
     plt.figure(figsize=(5, 4))
 
-    plt.plot(xs_.T, ys_.T)
+    for cnt_ in range(len(xs_)):
+        plt.plot(xs_[cnt_], ys_[cnt_])
 
     plt.legend([f.split('_')[1] for f in folder_paths_])
 

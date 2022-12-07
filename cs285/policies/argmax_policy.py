@@ -29,22 +29,21 @@ class PrunedArgMaxPolicy:
         self.action_pruner = action_pruner
 
     def get_action(self, obs: np.ndarray):
-        if len(obs.shape) > 3:
-            observation = obs
-        else:
-            observation = obs[None]
+        if obs.ndim < 2:
+            obs = obs[np.newaxis, :]
 
-        qa_values: np.ndarray = self.critic.qa_values(observation)
+        qa_values: np.ndarray = self.critic.qa_values(obs)
 
         choose_from_pruned = False if self.action_pruner is None else True
+
         if choose_from_pruned:
-            available_actions = [self.action_pruner.get_action(observation)]
+            available_actions = self.action_pruner.get_actions(obs)
 
             ac = get_maximizer_from_available_actions_np(qa_values, available_actions)
 
         else:
             ac = qa_values.argmax(axis=1)
 
-        if len(ac.shape) > 1:
+        if ac.ndim > 1:
             ac = ac.squeeze()
         return ac
