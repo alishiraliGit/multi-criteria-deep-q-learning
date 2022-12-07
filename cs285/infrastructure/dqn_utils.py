@@ -1,18 +1,37 @@
-"""This file includes a collection of utility functions that are useful for
-implementing DQN."""
+"""This file includes a collection of utility functions that are useful for implementing DQN."""
 import random
 from collections import namedtuple
 
-import tensorflow as tf
+import torch
 import gym
 import numpy as np
 from torch import nn
 import torch.optim as optim
 
-from cs285.infrastructure.atari_wrappers import wrap_deepmind
 from gym.envs.registration import registry, register
+from cs285.infrastructure import pytorch_util as ptu
+from cs285.infrastructure.atari_wrappers import wrap_deepmind
 
-import torch
+
+def get_maximizer_from_available_actions(values_na: torch.tensor, acs_list_n) -> torch.tensor:
+    """
+    For each row of qa_values, returns the maximizer action from the corresponding available actions.
+    @param values_na: [n x a] tensor
+    @param acs_list_n: list (len n) of list of available actions
+    """
+    values_na = ptu.to_numpy(values_na)
+
+    return ptu.from_numpy(get_maximizer_from_available_actions_np(values_na, acs_list_n)).to(torch.int64)
+
+
+def get_maximizer_from_available_actions_np(values_na: np.ndarray, acs_list_n) -> np.ndarray:
+    """
+    For each row of qa_values, returns the maximizer action from the corresponding available actions.
+    @param values_na: [n x a] tensor
+    @param acs_list_n: list (len n) of list of available actions
+    """
+
+    return np.array([acs_list_n[idx][vals[acs_list_n[idx]].argmax()] for idx, vals in enumerate(values_na)])
 
 
 class Flatten(torch.nn.Module):
@@ -337,18 +356,6 @@ class LinearSchedule(object):
         return self.initial_p + fraction * (self.final_p - self.initial_p)
 
 
-def minimize_and_clip(optimizer, objective, var_list, clip_val=10):
-    """Minimized `objective` using `optimizer` w.r.t. variables in
-    `var_list` while ensure the norm of the gradients for each
-    variable is clipped to `clip_val`
-    """
-    gradients = optimizer.compute_gradients(objective, var_list=var_list)
-    for i, (grad, var) in enumerate(gradients):
-        if grad is not None:
-            gradients[i] = (tf.clip_by_norm(grad, clip_val), var)
-    return optimizer.apply_gradients(gradients)
-
-
 def get_wrapper_by_name(env, classname):
     currentenv = env
     while True:
@@ -357,7 +364,7 @@ def get_wrapper_by_name(env, classname):
         elif isinstance(env, gym.Wrapper):
             currentenv = currentenv.env
         else:
-            raise ValueError("Couldn't find wrapper named %s"%classname)
+            raise ValueError("Couldn't find wrapper named %s" % classname)
 
 
 class MemoryOptimizedReplayBuffer(object):

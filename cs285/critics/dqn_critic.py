@@ -5,6 +5,7 @@ from torch.nn import utils
 from torch import nn
 
 from cs285.infrastructure import pytorch_util as ptu
+from cs285.infrastructure.dqn_utils import get_maximizer_from_available_actions
 from cs285.critics.base_critic import BaseCritic
 
 
@@ -191,13 +192,13 @@ class PrunedDQNCritic(DQNCritic):
             qa_tp1_values = self.q_net(next_ob_no)
 
             if choose_from_pruned:
-                ac_tp1 = self.get_maximizer_from_available_actions(qa_tp1_values, available_actions)
+                ac_tp1 = get_maximizer_from_available_actions(qa_tp1_values, available_actions)
             else:
                 ac_tp1 = qa_tp1_values.argmax(dim=1)
 
         else:
             if choose_from_pruned:
-                ac_tp1 = self.get_maximizer_from_available_actions(qa_tp1_target_values, available_actions)
+                ac_tp1 = get_maximizer_from_available_actions(qa_tp1_target_values, available_actions)
             else:
                 ac_tp1 = qa_tp1_target_values.argmax(dim=1)
 
@@ -220,19 +221,6 @@ class PrunedDQNCritic(DQNCritic):
         return {
             'Training Loss': ptu.to_numpy(loss),
         }
-
-    @staticmethod
-    def get_maximizer_from_available_actions(values_na: torch.tensor, acs_list_n) -> torch.tensor:
-        """
-        For each row of qa_values, returns the maximizer action from the corresponding available actions.
-        @param values_na: [n x a] tensor
-        @param acs_list_n: list (len n) of list of available actions
-        """
-        values_na = ptu.to_numpy(values_na)
-
-        return ptu.from_numpy(np.array(
-            [acs_list_n[idx][vals[acs_list_n[idx]].argmax()] for idx, vals in enumerate(values_na)]
-        )).to(torch.int64)
 
     @staticmethod
     def load(load_path):

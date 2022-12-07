@@ -2,7 +2,7 @@ import numpy as np
 
 from cs285.infrastructure.dqn_utils import MemoryOptimizedReplayBuffer, PiecewiseSchedule
 from cs285.agents.base_agent import BaseAgent
-from cs285.policies.argmax_policy import ArgMaxPolicy
+from cs285.policies.argmax_policy import ArgMaxPolicy, PrunedArgMaxPolicy
 from cs285.critics.dqn_critic import DQNCritic, PrunedDQNCritic
 
 
@@ -30,10 +30,10 @@ class DQNAgent(object):
         # Actor/Critic
         if prune:
             self.critic = PrunedDQNCritic(agent_params, self.optimizer_spec, agent_params['action_pruner'])
+            self.actor = PrunedArgMaxPolicy(self.critic, agent_params['action_pruner'])
         else:
             self.critic = DQNCritic(agent_params, self.optimizer_spec)
-
-        self.actor = ArgMaxPolicy(self.critic)
+            self.actor = ArgMaxPolicy(self.critic)
 
         # Replay buffer
         lander = agent_params['env_name'].startswith('LunarLander')

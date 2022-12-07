@@ -87,7 +87,7 @@ Folder [figs](figs) has sample evaluation outputs for the sample data.
 Use [post_process_training_logs](cs285/scripts/post_process_training_logs.py) to visualize training logs.
 
 Use [post_process_eval_pareto_opt_dqn](cs285/scripts/post_process_eval_pareto_opt_dqn.py)
-to read the results of pareto action set evaluation.
+to read the results of Pareto optimality evaluation.
 
 ## Sample data
 Folder [data](data) has some sample runs with `exp_name=p4`. 
