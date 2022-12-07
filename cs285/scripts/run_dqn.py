@@ -37,6 +37,7 @@ def main():
 
     # Pruning
     parser.add_argument('--pruning_file_prefix', type=str, default=None)
+    parser.add_argument('--pruning_eps', type=float, default=0., help='Look at ParetoOptimalPolicy.')
 
     # System
     parser.add_argument('--seed', type=int, default=1)
@@ -97,7 +98,7 @@ def main():
     if prune:
         pruning_folder_paths = glob.glob(os.path.join(data_path, params['pruning_file_prefix'] + '*'))
         pruning_file_paths = [os.path.join(f, 'dqn_agent.pt') for f in pruning_folder_paths]
-        pruning_agent = LoadedParetoOptDQNAgent(file_paths=pruning_file_paths)
+        pruning_agent = LoadedParetoOptDQNAgent(file_paths=pruning_file_paths, pruning_eps=params['pruning_eps'])
         params['action_pruner'] = pruning_agent.actor
 
     ##################################

@@ -10,10 +10,18 @@ from collections import Counter
 if __name__ == "__main__":
     # Path settings
     data_path_ = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'data')
-    fig_path_ = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'figs')
+    fig_path_ = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'figs')
+    if not(os.path.exists(fig_path_)):
+        os.makedirs(fig_path_)
 
-    exp_name_ = 'p4_eval_LunarLander-Customizable'
-    folder_path_ = glob.glob(os.path.join(data_path_, exp_name_ + '*'))[0]
+    exp_name_ = 'p4_eps0.3_eval_LunarLander-Customizable'
+    all_folders_ = glob.glob(os.path.join(data_path_, exp_name_ + '*'))
+    if len(all_folders_) > 1:
+        raise Exception('More than one folder with this exp_name prefix found!')
+    if len(all_folders_) == 0:
+        raise Exception('No such file found!')
+
+    folder_path_ = all_folders_[0]
     file_path_ = os.path.join(folder_path_, 'actions.pkl')
 
     # Load actions
