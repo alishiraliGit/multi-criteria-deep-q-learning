@@ -81,7 +81,7 @@ python cs285/scripts/run_eval_pareto_opt_dqn.py \
 --env_rew_weights 0 0 0 0 1 \
 --seed 1
 ```
-
+Folder [figs](figs) has sample evaluation outputs for the sample data.
 
 ## Post-process and visualization
 Use [post_process_training_logs](cs285/scripts/post_process_training_logs.py) to visualize training logs.
