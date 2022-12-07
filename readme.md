@@ -47,7 +47,9 @@ I recommend using postfix `_sparse` for `exp_name`
 when you run on an environment with default rewards.
 
 ### PrunedDQN
-To run DQN with pruned actions, you need to specify the `pruning_file_prefix` argument. 
+To run DQN with pruned actions, you need to specify the `pruning_file_prefix` argument and
+optionally `pruning_eps` argument (default=0). The larger `pruning_eps`, the smaller will be the size of Pareto optimal sets 
+(look at [ParetoOptimalPolicy](cs285/policies/pareto_opt_policy.py)). 
 The program will automatically look in the [data](data) folder for all saved runs with
 this prefix and load their critics. 
 The loaded critics will be used in [ParetoOptimalAgent](cs285/agents/pareto_opt_agent.py)
@@ -59,6 +61,7 @@ python cs285/scripts/run_dqn.py \
 --exp_name xxx_pruned_sparse \
 --env_name LunarLander-Customizable \
 --pruning_file_prefix xxx_LunarLander-Customizable \
+--pruning_eps yyy \
 --env_rew_weights 0 0 0 0 1 \
 --double_q --seed 1
 ```
@@ -73,6 +76,7 @@ python cs285/scripts/run_eval_pareto_opt_dqn.py \
 --exp_name xxx_eval \
 --env_name LunarLander-Customizable \
 --pruning_file_prefix xxx_LunarLander-Customizable \
+--pruning_eps yyy \
 --opt_file_prefix xxx_opt_LunarLander-Customizable \
 --env_rew_weights 0 0 0 0 1 \
 --seed 1
@@ -86,5 +90,5 @@ Use [post_process_eval_pareto_opt_dqn](cs285/scripts/post_process_eval_pareto_op
 to read the results of pareto action set evaluation.
 
 ## Sample data
-Folder [data](data) has some sample runs with `exp_name=p1`. 
+Folder [data](data) has some sample runs with `exp_name=p4`. 
 Do not push your data unless we want them for the final report.
