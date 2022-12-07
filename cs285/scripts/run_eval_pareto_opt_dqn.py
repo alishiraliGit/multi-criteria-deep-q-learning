@@ -58,7 +58,7 @@ def main():
 
     if customize_rew:
         logdir = args.exp_name + '_' + args.env_name \
-                 + '|'.join([str(w) for w in params['env_rew_weights']]) \
+                 + '-'.join([str(w) for w in params['env_rew_weights']]) \
                  + '_' + time.strftime('%d-%m-%Y_%H-%M-%S')
     else:
         logdir = args.exp_name + '_' + args.env_name + '_' + time.strftime('%d-%m-%Y_%H-%M-%S')

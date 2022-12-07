@@ -3,5 +3,4 @@ virtualenv
 .idea
 *.pyc
 *.cpython-38.pyc
-*.data
 *.fig
