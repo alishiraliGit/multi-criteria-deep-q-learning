@@ -11,6 +11,7 @@ import torch.optim as optim
 from gym.envs.registration import registry, register
 from cs285.infrastructure import pytorch_util as ptu
 from cs285.infrastructure.atari_wrappers import wrap_deepmind
+from cs285.infrastructure.utils import *
 
 
 def get_maximizer_from_available_actions(values_na: torch.tensor, acs_list_n) -> torch.tensor:
@@ -454,6 +455,12 @@ class MemoryOptimizedReplayBuffer(object):
             Array of shape (batch_size,) and dtype np.float32
         """
         assert self.can_sample(batch_size)
+        #print('obs')
+        #print(self.obs[:30])
+        #print('action')
+        #print(self.action[:30])
+        #print('reward')
+        #print(self.reward[:30])
         indices = sample_n_unique(lambda: random.randint(0, self.num_in_buffer - 2), batch_size)
         return self._encode_sample(indices)
 
@@ -545,3 +552,17 @@ class MemoryOptimizedReplayBuffer(object):
         self.action[idx] = action
         self.reward[idx] = reward
         self.done[idx] = done
+    
+    def store_offline_data(self,paths):
+
+        #This works since we add offline data only once to the buffer
+        self.num_in_buffer = len(paths)
+
+        # convert new rollouts into their component arrays, and append them onto our arrays
+        observations, actions, next_observations, terminals, concatenated_rews, unconcatenated_rews = convert_listofrollouts(paths)
+
+        #add data
+        self.obs = observations.reshape(observations.shape[0],1)
+        self.action = actions
+        self.reward = concatenated_rews
+        self.done = terminals

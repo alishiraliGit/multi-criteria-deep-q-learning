@@ -12,9 +12,7 @@ class DQNAgent(object):
         self.env = env
         self.agent_params = agent_params
 
-        # Env params
-        self.last_obs = self.env.reset()
-        self.num_actions = agent_params['ac_dim']
+        
 
         # Learning params
         self.batch_size = agent_params['batch_size']
@@ -23,6 +21,17 @@ class DQNAgent(object):
         self.target_update_freq = agent_params['target_update_freq']
         self.exploration = agent_params['exploration_schedule']
         self.optimizer_spec = agent_params['optimizer_spec']
+
+        self.offline_RL = agent_params['offline_RL']
+
+        # Env params
+        if not self.offline_RL:
+            self.last_obs = self.env.reset()
+            self.num_actions = agent_params['ac_dim']
+        else:
+            self.last_obs = None # TODO check that this does not break anything
+            self.num_actions = agent_params['ac_dim']
+
 
         # Pruning
         prune = True if 'action_pruner' in agent_params else False
@@ -37,6 +46,9 @@ class DQNAgent(object):
 
         # Replay buffer
         lander = agent_params['env_name'].startswith('LunarLander')
+        if self.offline_RL:
+            agent_params['replay_buffer_size'] = 20912 # TODO fix this later
+
         self.replay_buffer = MemoryOptimizedReplayBuffer(
             agent_params['replay_buffer_size'], agent_params['frame_history_len'], lander=lander)
         self.replay_buffer_idx = None
@@ -46,8 +58,12 @@ class DQNAgent(object):
         self.num_param_updates = 0
 
     def add_to_replay_buffer(self, paths):
-        # step_env() has already added the transition to the replay buffer
-        pass
+        # step_env() has already added the transition to the replay buffer (in case of online learning)
+
+        if self.offline_RL: 
+            self.replay_buffer.store_offline_data(paths)
+        else:
+            pass
 
     def step_env(self):
         """

@@ -53,83 +53,117 @@ class RLTrainer(object):
         self.log_video = None
         self.log_metrics = None
         self.log_params = None
+        self.offline = params['offline_RL']
+        self.params['agent_params']['offline_RL'] = params['offline_RL']
 
         #############
         # ENV
         #############
 
         # Make the gym environment
-        register_custom_envs()
+        if not self.offline:
+            register_custom_envs()
 
-        self.env = gym.make(self.params['env_name'])
+            self.env = gym.make(self.params['env_name'])
 
-        # Added by Ali
-        if params['env_name'] == 'LunarLander-Customizable' and params['env_rew_weights'] is not None:
-            self.env.set_rew_weights(params['env_rew_weights'])
+            # Added by Ali
+            if params['env_name'] == 'LunarLander-Customizable' and params['env_rew_weights'] is not None:
+                self.env.set_rew_weights(params['env_rew_weights'])
 
-        if self.params['video_log_freq'] > 0:
-            self.episode_trigger = lambda episode: episode % self.params['video_log_freq'] == 0
+            if self.params['video_log_freq'] > 0:
+                self.episode_trigger = lambda episode: episode % self.params['video_log_freq'] == 0
+            else:
+                self.episode_trigger = lambda episode: False
+
+            if 'env_wrappers' in self.params:
+                # These operations are currently only for Atari envs
+                self.env = wrappers.RecordEpisodeStatistics(self.env, deque_size=1000)
+                self.env = ReturnWrapper(self.env)
+                self.env = wrappers.RecordVideo(self.env, os.path.join(self.params['logdir'], 'gym'),
+                                                episode_trigger=self.episode_trigger)
+                self.env = params['env_wrappers'](self.env)
+                self.mean_episode_reward = -float('nan')
+                self.best_mean_episode_reward = -float('inf')
+
+            if 'non_atari_colab_env' in self.params and self.params['video_log_freq'] > 0:
+                self.env = wrappers.RecordVideo(self.env, os.path.join(self.params['logdir'], 'gym'),
+                                                episode_trigger=self.episode_trigger)
+                self.mean_episode_reward = -float('nan')
+                self.best_mean_episode_reward = -float('inf')
+
+            self.env.seed(seed)
         else:
-            self.episode_trigger = lambda episode: False
-
-        if 'env_wrappers' in self.params:
-            # These operations are currently only for Atari envs
-            self.env = wrappers.RecordEpisodeStatistics(self.env, deque_size=1000)
-            self.env = ReturnWrapper(self.env)
-            self.env = wrappers.RecordVideo(self.env, os.path.join(self.params['logdir'], 'gym'),
-                                            episode_trigger=self.episode_trigger)
-            self.env = params['env_wrappers'](self.env)
-            self.mean_episode_reward = -float('nan')
-            self.best_mean_episode_reward = -float('inf')
-
-        if 'non_atari_colab_env' in self.params and self.params['video_log_freq'] > 0:
-            self.env = wrappers.RecordVideo(self.env, os.path.join(self.params['logdir'], 'gym'),
-                                            episode_trigger=self.episode_trigger)
-            self.mean_episode_reward = -float('nan')
-            self.best_mean_episode_reward = -float('inf')
-
-        self.env.seed(seed)
+            self.env = "MIMIC" #TODO Try to make this better later
 
         # Import plotting (locally if 'obstacles' env)
         if not(self.params['env_name'] == 'obstacles-cs285-v0'):
             import matplotlib
             matplotlib.use('Agg')
 
-        # Maximum length for episodes
-        self.params['ep_len'] = self.params['ep_len'] or self.env.spec.max_episode_steps
-        global MAX_VIDEO_LEN
-        MAX_VIDEO_LEN = self.params['ep_len']
+        #######################################################
+        # TODO redefine all of these for offline learning
+        #######################################################
 
-        # Is this env continuous, or discrete?
-        discrete = isinstance(self.env.action_space, gym.spaces.Discrete)
+        if self.offline:
+            self.params['ep_len'] = self.params['ep_len']
+            discrete = True
+            img = False
+            self.params['agent_params']['discrete'] = discrete
 
-        # Are the observations images?
-        img = len(self.env.observation_space.shape) > 2
+            ob_dim = 1
+            ac_dim = 25
+            self.params['agent_params']['ac_dim'] = ac_dim
+            self.params['agent_params']['ob_dim'] = ob_dim
 
-        self.params['agent_params']['discrete'] = discrete
+            """
+            #Wont implement any of the video features for MIMIC
+            # Simulation timestep, will be used for video saving
+            if 'model' in dir(self.env):
+                self.fps = 1/self.env.model.opt.timestep
+            elif 'env_wrappers' in self.params:
+                self.fps = 30  # this is not actually used when using the Monitor wrapper
+            elif 'video.frames_per_second' in self.env.env.metadata.keys():
+                self.fps = self.env.env.metadata['video.frames_per_second']
+            else:
+                self.fps = 10
+            """
 
-        # Observation and action sizes
-        ob_dim = self.env.observation_space.shape if img else self.env.observation_space.shape[0]
-        ac_dim = self.env.action_space.n if discrete else self.env.action_space.shape[0]
-        self.params['agent_params']['ac_dim'] = ac_dim
-        self.params['agent_params']['ob_dim'] = ob_dim
+        else:        
+            # Maximum length for episodes
+            self.params['ep_len'] = self.params['ep_len'] or self.env.spec.max_episode_steps
+            global MAX_VIDEO_LEN
+            MAX_VIDEO_LEN = self.params['ep_len']
 
-        # Simulation timestep, will be used for video saving
-        if 'model' in dir(self.env):
-            self.fps = 1/self.env.model.opt.timestep
-        elif 'env_wrappers' in self.params:
-            self.fps = 30  # this is not actually used when using the Monitor wrapper
-        elif 'video.frames_per_second' in self.env.env.metadata.keys():
-            self.fps = self.env.env.metadata['video.frames_per_second']
-        else:
-            self.fps = 10
+            # Is this env continuous, or discrete?
+            discrete = isinstance(self.env.action_space, gym.spaces.Discrete)
+
+            # Are the observations images?
+            img = len(self.env.observation_space.shape) > 2
+
+            self.params['agent_params']['discrete'] = discrete
+
+            # Observation and action sizes
+            ob_dim = self.env.observation_space.shape if img else self.env.observation_space.shape[0]
+            ac_dim = self.env.action_space.n if discrete else self.env.action_space.shape[0]
+            self.params['agent_params']['ac_dim'] = ac_dim
+            self.params['agent_params']['ob_dim'] = ob_dim
+
+            # Simulation timestep, will be used for video saving
+            if 'model' in dir(self.env):
+                self.fps = 1/self.env.model.opt.timestep
+            elif 'env_wrappers' in self.params:
+                self.fps = 30  # this is not actually used when using the Monitor wrapper
+            elif 'video.frames_per_second' in self.env.env.metadata.keys():
+                self.fps = self.env.env.metadata['video.frames_per_second']
+            else:
+                self.fps = 10
 
         #############
         # AGENT
         #############
 
         agent_class = self.params['agent_class']
-        self.agent = agent_class(self.env, self.params['agent_params'])
+        self.agent = agent_class(self.env, self.params['agent_params']) #TODO enable offline learning here
 
     def run_training_loop(self, n_iter, collect_policy, eval_policy,
                           initial_expertdata=None, relabel_with_expert=False,
@@ -176,11 +210,28 @@ class RLTrainer(object):
 
             # Collect trajectories, to be used for training
             # TODO: Fix: For single step trajectories, agent should be DQNAgent.
-            if isinstance(self.agent, DQNAgent):
+            if isinstance(self.agent, DQNAgent) and not self.offline:
                 # Only perform an env step and add to replay buffer for DQN
                 self.agent.step_env()
                 # The step_env() automatically adds to replay buffer so paths are not required
                 paths, envsteps_this_batch, train_video_paths = None, 1, None
+            elif self.offline & itr==0:
+                if self.params['buffer_path'] == None:
+                    print('Please provide a buffer_path to enable offline learning')
+                    break
+                with open(self.params['buffer_path'], 'rb') as f:
+                    all_paths = pickle.load(f)
+                num_rollouts = int(round(len(all_paths)*0.8,0))
+                rand_indices_train = np.random.RandomState(seed=42).permutation(len(all_paths),)[:num_rollouts]
+                rand_indices_test = np.random.RandomState(seed=42).permutation(len(all_paths),)[num_rollouts:]
+                train_paths = np.array(all_paths)[rand_indices_train]
+                test_paths = list(np.array(all_paths)[rand_indices_test])
+                paths = list(train_paths)
+            
+                envsteps_this_batch = sum([len(path['reward']) for path in paths]) #TODO check whether this variable is worth the compute
+                train_video_paths = None
+            elif self.offline:
+                pass
             else:
                 use_batch_size = self.params['batch_size']
                 if itr == 0:
@@ -190,14 +241,20 @@ class RLTrainer(object):
                         itr, initial_expertdata, collect_policy, use_batch_size)
                 )
 
-            self.total_envsteps += envsteps_this_batch
+            if self.offline:
+                self.total_envsteps = envsteps_this_batch
+            else:   
+                self.total_envsteps += envsteps_this_batch
 
             # Relabel the collected obs with actions from a provided expert policy
             if relabel_with_expert and itr >= start_relabel_with_expert:
                 paths = self.do_relabel_with_expert(expert_policy, paths)
 
             # Add collected data to replay buffer
-            self.agent.add_to_replay_buffer(paths)
+            if self.offline & itr>0:
+                pass
+            else:
+                self.agent.add_to_replay_buffer(paths)
 
             # Train agent (using sampled data from replay buffer)
             if itr % print_period == 0:
@@ -205,12 +262,17 @@ class RLTrainer(object):
 
             all_logs = self.train_agent()
 
+            #print(all_logs)
+
             # log/save
             if self.log_video or self.log_metrics:
                 # perform logging
                 print('\nBeginning logging procedure...')
                 if isinstance(self.agent, DQNAgent):
-                    self.perform_dqn_logging(all_logs)
+                    if self.offline:
+                        self.perform_offline_logging(itr, test_paths, eval_policy, all_logs)
+                    else:
+                        self.perform_dqn_logging(all_logs)
                 else:
                     self.perform_logging(itr, paths, eval_policy, train_video_paths, all_logs)
 
@@ -289,6 +351,8 @@ class RLTrainer(object):
 
             # Use the sampled data to train an agent
             train_log = self.agent.train(ob_batch, ac_batch, re_batch, next_ob_batch, terminal_batch)
+            #print('printing train log')
+            #print(train_log)
             all_logs.append(train_log)
 
         return all_logs
@@ -300,6 +364,7 @@ class RLTrainer(object):
         last_log = all_logs[-1]
 
         episode_rewards = self.env.get_episode_rewards()
+        print(episode_rewards)
         if len(episode_rewards) > 0:
             self.mean_episode_reward = np.mean(episode_rewards[-100:])
         if len(episode_rewards) > 100:
@@ -389,6 +454,64 @@ class RLTrainer(object):
             if itr == 0:
                 initial_return = np.mean(train_returns)
                 logs["Initial_DataCollection_AverageReturn"] = initial_return
+
+            # perform the logging
+            for key, value in logs.items():
+                print('{} : {}'.format(key, value))
+                self.logger.log_scalar(value, key, itr)
+            print('Done logging...\n\n')
+
+            self.logger.flush()
+    
+    def perform_offline_logging(self, itr, eval_paths, eval_policy, all_logs):
+
+        last_log = all_logs[-1]
+
+        #######################
+
+        # Collect eval trajectories, for logging
+        #print("\nCollecting data for eval...")
+        #eval_paths, eval_envsteps_this_batch = \
+            #utils.sample_trajectories(self.env, eval_policy, self.params['eval_batch_size'], self.params['ep_len'])
+
+        #######################
+
+        # save eval metrics
+        if self.log_metrics:
+            # returns, for logging
+            #train_returns = [path["reward"].sum() for path in eval_paths]
+            #eval_returns = [eval_path["reward"].sum() for eval_path in eval_paths]
+
+            # episode lengths, for logging
+            #train_ep_lens = [len(path["reward"]) for path in eval_paths]
+            #eval_ep_lens = [len(eval_path["reward"]) for eval_path in eval_paths]
+
+            # decide what to log
+            logs = OrderedDict()
+            if len(last_log) > 0:
+                logs['Training_Loss'] = last_log['Training Loss']
+            """
+            logs["Eval_AverageReturn"] = np.mean(eval_returns)
+            logs["Eval_StdReturn"] = np.std(eval_returns)
+            logs["Eval_MaxReturn"] = np.max(eval_returns)
+            logs["Eval_MinReturn"] = np.min(eval_returns)
+            logs["Eval_AverageEpLen"] = np.mean(eval_ep_lens)
+
+            logs["Train_AverageReturn"] = np.mean(train_returns)
+            logs["Train_StdReturn"] = np.std(train_returns)
+            logs["Train_MaxReturn"] = np.max(train_returns)
+            logs["Train_MinReturn"] = np.min(train_returns)
+            logs["Train_AverageEpLen"] = np.mean(train_ep_lens)
+
+            logs["Train_EnvstepsSoFar"] = self.total_envsteps
+            """
+            logs["TimeSinceStart"] = time.time() - self.start_time
+            logs.update(last_log)
+
+            # Changed by Ali
+            #if itr == 0:
+                #initial_return = np.mean(train_returns)
+                #logs["Initial_DataCollection_AverageReturn"] = initial_return
 
             # perform the logging
             for key, value in logs.items():

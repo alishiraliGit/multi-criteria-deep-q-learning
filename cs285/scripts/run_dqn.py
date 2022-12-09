@@ -49,6 +49,10 @@ def main():
     parser.add_argument('--video_log_freq', type=int, default=-1)
     parser.add_argument('--params_log_freq', type=int, default=int(1e4))  # Saves the trained networks
 
+    #MIMIC offline learning params
+    parser.add_argument('--offline_RL', type=bool, default=False)
+    parser.add_argument('--buffer_path', default=None) #type=int,
+
     args = parser.parse_args()
 
     # Convert to dictionary
@@ -106,6 +110,8 @@ def main():
     ##################################
     params['agent_class'] = DQNAgent
     params['agent_params'] = params
+
+    print(params['offline_RL'])
 
     rl_trainer = RLTrainer(params)
     rl_trainer.run_training_loop(
