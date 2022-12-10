@@ -32,7 +32,7 @@ if __name__ == '__main__':
     os.makedirs(save_path_, exist_ok=True)
 
     # Find relevant files
-    prefix_ = 'p4_eps*_pruned_sparse_LunarLander'
+    prefix_ = 'p5_eps*_LunarLander-MultiReward'
     folder_paths_ = glob.glob(os.path.join(load_path_, prefix_ + '*'))
     file_paths_ = [glob.glob(os.path.join(f, 'events*'))[0] for f in folder_paths_]
 
@@ -41,7 +41,7 @@ if __name__ == '__main__':
 
     # Extract data
     x_tag_ = 'Train_EnvstepsSoFar'
-    y_tag_ = 'Train_AverageReturn'
+    y_tag_ = 'Training_Loss'  # 'Train_AverageReturn'
 
     xs_ = [get_section_results(f, [x_tag_])[x_tag_][:-1] for f in file_paths_]
 

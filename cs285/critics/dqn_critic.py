@@ -5,7 +5,7 @@ from torch.nn import utils
 from torch import nn
 
 from cs285.infrastructure import pytorch_util as ptu
-from cs285.infrastructure.dqn_utils import get_maximizer_from_available_actions
+from cs285.infrastructure.dqn_utils import get_maximizer_from_available_actions, gather_by_actions
 from cs285.critics.base_critic import BaseCritic
 from cs285.policies.pareto_opt_policy import ParetoOptimalPolicy
 
@@ -188,6 +188,8 @@ class MDQNCritic(BaseCritic):
 
         # Pruning
         self.eps = hparams['pruning_eps']
+        self.consistent = hparams['consistent_mdqn']
+        self.alpha = hparams['consistency_alpha']
 
     def update(self, ob_no, ac_n, next_ob_no, reward_nr, terminal_n):
         """
@@ -201,11 +203,7 @@ class MDQNCritic(BaseCritic):
 
         # Get the current Q-values
         qa_t_values_nar = self.mq_net(ob_no)
-        q_t_values_nr = torch.gather(
-            qa_t_values_nar,
-            1,
-            ac_n.unsqueeze(1).unsqueeze(2).expand(-1, 1, self.re_dim)
-        ).squeeze(1)
+        q_t_values_nr = gather_by_actions(qa_t_values_nar, ac_n)
 
         # Compute the Q-values for the next observation
         qa_tp1_values_nar = self.mq_net(next_ob_no).detach()
@@ -220,11 +218,32 @@ class MDQNCritic(BaseCritic):
         ac_tp1_n = ptu.from_numpy(ac_tp1_n).to(torch.long)
 
         # Find Q-values for the selected actions
-        q_tp1_values_nr = torch.gather(
-            qa_tp1_values_nar,
-            1,
-            ac_tp1_n.unsqueeze(1).unsqueeze(2).expand(-1, 1, self.re_dim)
-        ).squeeze(1)
+        q_tp1_values_nr = gather_by_actions(qa_tp1_values_nar, ac_tp1_n)
+
+        # Update the action for consistency
+        if self.consistent:
+            # Draw a new action (prime) and find its Q-values
+            acp_tp1_n = np.array([np.random.choice(actions) for actions in available_actions_n])
+            acp_tp1_n = ptu.from_numpy(acp_tp1_n).to(torch.long)
+            qp_tp1_values_nr = gather_by_actions(qa_tp1_values_nar, acp_tp1_n)
+
+            # Find inner-products of Q_a and Q_a'
+            prod_t_tp1_n = (q_t_values_nr.detach() * q_tp1_values_nr).sum(dim=1)
+            prodp_t_tp1_n = (q_t_values_nr.detach() * qp_tp1_values_nr).sum(dim=1)
+
+            # Find likelihood ratio
+            likelihood_n = torch.exp(self.alpha*prodp_t_tp1_n)/torch.exp((self.alpha*prod_t_tp1_n))
+
+            # Select the better action
+            rnd_n = torch.rand(likelihood_n.shape)
+            choice_n = (rnd_n < likelihood_n)*1
+
+            acs_tp1_n2 = torch.stack([ac_tp1_n, acp_tp1_n], dim=1)
+
+            ac_tp1_n = gather_by_actions(acs_tp1_n2, choice_n)
+
+            # Find Q-values for the selected actions
+            q_tp1_values_nr = gather_by_actions(qa_tp1_values_nar, ac_tp1_n)
 
         # Compute targets for minimizing Bellman error
         # currentReward + self.gamma * qValuesOfNextTimestep * (not terminal)
