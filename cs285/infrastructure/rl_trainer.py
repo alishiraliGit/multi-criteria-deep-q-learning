@@ -485,7 +485,6 @@ class RLTrainer(object):
         if self.log_metrics:
             # decide what to log
             logs = OrderedDict()
-            logs['Training_Loss'] = last_log['Training Loss']
             logs['Rho'] = rho
             logs['TimeSinceStart'] = time.time() - self.start_time
             logs.update(last_log)
