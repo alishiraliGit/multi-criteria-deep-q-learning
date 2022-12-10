@@ -2,6 +2,7 @@ import numpy as np
 
 from cs285.infrastructure.dqn_utils import get_maximizer_from_available_actions_np
 
+
 class ArgMaxPolicy:
     def __init__(self, critic):
         self.critic = critic

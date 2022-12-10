@@ -86,6 +86,36 @@ class ParetoOptimalPolicy(object):
         return [self.find_strong_pareto_optimal_actions(vals, self.eps) for vals in qa_values_nac]
 
 
+class RandomParetoOptimalActionPolicy(object):
+
+    def __init__(self, critic, eps=0):
+        self.critic = critic
+
+        self.eps = eps
+
+    def get_action(self, obs: np.ndarray):
+        if obs.ndim < 2:
+            obs = obs[np.newaxis, :]
+
+        qa_values_ar: np.ndarray = self.critic.qa_values(obs)[0]
+
+        available_actions = ParetoOptimalPolicy.find_strong_pareto_optimal_actions(qa_values_ar, self.eps)
+
+        return np.random.choice(available_actions)
+
+    def get_actions(self, ob_no: np.ndarray):
+        if ob_no.ndim < 2:
+            ob_no = ob_no[np.newaxis, :]
+
+        qa_values_nar: np.ndarray = self.critic.qa_values(ob_no)
+
+        available_actions_n = [
+            ParetoOptimalPolicy.find_strong_pareto_optimal_actions(vals, self.eps) for vals in qa_values_nar
+        ]
+
+        return np.array([np.random.choice(actions) for actions in available_actions_n])
+
+
 if __name__ == '__main__':
     # Test find_pareto_optimal_actions
     values_ = np.array([

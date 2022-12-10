@@ -107,23 +107,23 @@ def get_env_kwargs(env_name):
         }
         kwargs['exploration_schedule'] = lander_exploration_schedule(kwargs['num_timesteps'])
 
-    elif env_name.startswith('CartPole'):
+    elif env_name.startswith('MIMIC'):
         kwargs = {
-            'optimizer_spec': cartpole_optimizer(),
-            'q_func': create_cartpole_q_network,
-            'exploration_schedule': ConstantSchedule(0),
-            'replay_buffer_size': 100000,
+            'optimizer_spec': lander_optimizer(),
+            'q_func': create_mimic_q_network,
+            'replay_buffer_size': 500000,
+            'batch_size': 32,
             'gamma': 1.00,
-            'learning_starts': 3000,
+            'learning_starts': 0,
             'learning_freq': 1,
             'frame_history_len': 1,
-            'target_update_freq': 1000,
+            'target_update_freq': 3000,
             'grad_norm_clipping': 10,
             'lander': False,
-            'num_timesteps': 100000,
-            'env_wrappers': lambda env: env
+            'num_timesteps': 500000,
+            'env_wrappers': empty_wrapper,
+            'exploration_schedule': None,
         }
-
     else:
         raise NotImplementedError
 
@@ -134,33 +134,22 @@ def empty_wrapper(env):
     return env
 
 
-def create_cartpole_q_network(ob_dim, num_actions):
-    return nn.Sequential(
-        nn.Linear(ob_dim, 32),
-        nn.ReLU(),
-        nn.Linear(32, 32),
-        nn.ReLU(),
-        nn.Linear(32, num_actions),
-    )
+###################
+# Lander functions
+###################
 
+def create_lander_q_network(ob_dim, num_actions, num_rewards=1):
+    if num_rewards == 1:
+        output_layer = nn.Linear(64, num_actions)
+    else:
+        output_layer = ptu.MultiDimLinear(64, (num_actions, num_rewards))
 
-def cartpole_optimizer():
-    return OptimizerSpec(
-        constructor=optim.Adam,
-        optim_kwargs=dict(
-            lr=1e-3,
-        ),
-        learning_rate_schedule=ConstantSchedule(1e-3).value,  # keep init learning rate
-    )
-
-
-def create_lander_q_network(ob_dim, num_actions):
     return nn.Sequential(
         nn.Linear(ob_dim, 64),
         nn.ReLU(),
         nn.Linear(64, 64),
         nn.ReLU(),
-        nn.Linear(64, num_actions),
+        output_layer,
     )
 
 
@@ -183,13 +172,31 @@ def lander_exploration_schedule(num_timesteps):
     )
 
 
-class Ipdb(nn.Module):
-    def __init__(self):
-        super().__init__()
+###################
+# MIMIC functions
+###################
 
-    def forward(self, x):
-        import ipdb; ipdb.set_trace()
-        return x
+
+def create_mimic_q_network(ob_dim, num_actions):
+    return nn.Sequential(
+        nn.Linear(ob_dim, 64),
+        nn.ReLU(),
+        nn.Linear(64, 64),
+        nn.ReLU(),
+        nn.Linear(64, num_actions),
+    )
+
+
+def mimic_optimizer():
+    return OptimizerSpec(
+        constructor=optim.Adam,
+        optim_kwargs=dict(
+            lr=1e-3,
+        ),
+        learning_rate_schedule=ConstantSchedule(1e-3).value,
+    )
+
+#################
 
 
 class PreprocessAtari(nn.Module):
@@ -455,12 +462,7 @@ class MemoryOptimizedReplayBuffer(object):
             Array of shape (batch_size,) and dtype np.float32
         """
         assert self.can_sample(batch_size)
-        #print('obs')
-        #print(self.obs[:30])
-        #print('action')
-        #print(self.action[:30])
-        #print('reward')
-        #print(self.reward[:30])
+
         indices = sample_n_unique(lambda: random.randint(0, self.num_in_buffer - 2), batch_size)
         return self._encode_sample(indices)
 
@@ -523,7 +525,7 @@ class MemoryOptimizedReplayBuffer(object):
             self.obs = np.empty([self.size] + list(frame.shape), dtype=np.float32 if self.lander else np.uint8)
             self.action = np.empty([self.size], dtype=np.int32)
             self.reward = np.empty([self.size], dtype=np.float32)
-            self.done = np.empty([self.size], dtype=np.bool)
+            self.done = np.empty([self.size], dtype=bool)
         self.obs[self.next_idx] = frame
 
         ret = self.next_idx
@@ -555,14 +557,15 @@ class MemoryOptimizedReplayBuffer(object):
     
     def store_offline_data(self,paths):
 
-        #This works since we add offline data only once to the buffer
+        # This works since we add offline data only once to the buffer
         self.num_in_buffer = len(paths)
 
         # convert new rollouts into their component arrays, and append them onto our arrays
-        observations, actions, next_observations, terminals, concatenated_rews, unconcatenated_rews = convert_listofrollouts(paths)
+        observations, actions, next_observations, terminals, concatenated_rews, unconcatenated_rews = \
+            convert_listofrollouts(paths)
 
-        #add data
-        self.obs = observations.reshape(observations.shape[0],1)
+        # add data
+        self.obs = observations.reshape(observations.shape[0], 1)
         self.action = actions
         self.reward = concatenated_rews
         self.done = terminals

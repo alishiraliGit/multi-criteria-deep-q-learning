@@ -1,9 +1,29 @@
+from typing import List
 import numpy as np
 import time
 import copy
 
 ############################################
 ############################################
+
+
+def discounted_cumsum(rewards: np.ndarray, gamma) -> np.ndarray:
+    """
+        Helper function which
+        -takes a list of rewards {r_0, r_1, ..., r_t', ... r_T},
+        -and returns a list where the entry in each index t is sum_{t'=t}^T gamma^(t'-t) * r_{t'}
+    """
+    n = len(rewards)
+    if not isinstance(gamma, np.ndarray):
+        gamma = np.array(gamma)
+
+    reversed_discounted_rewards = ((gamma ** range(n)) * rewards)[::-1]
+    cumsum_rewards = np.cumsum(reversed_discounted_rewards)[::-1]
+    reward_to_go_norm_coeff = (1 / gamma) ** range(n)
+    rewards_to_go = cumsum_rewards * reward_to_go_norm_coeff
+
+    return rewards_to_go
+
 
 def calculate_mean_prediction_error(env, action_sequence, models, data_statistics):
 
@@ -130,6 +150,7 @@ def sample_n_trajectories(env, policy, ntraj, max_path_length, render=False, ren
 ############################################
 ############################################
 
+
 def Path(obs, image_obs, acs, rewards, next_obs, terminals):
     """
         Take info (separate arrays) from a single rollout
@@ -137,10 +158,10 @@ def Path(obs, image_obs, acs, rewards, next_obs, terminals):
     """
     if image_obs != []:
         image_obs = np.stack(image_obs, axis=0)
-    return {"observation" : np.array(obs, dtype=np.float32),
-            "image_obs" : np.array(image_obs, dtype=np.uint8),
-            "reward" : np.array(rewards, dtype=np.float32),
-            "action" : np.array(acs, dtype=np.float32),
+    return {"observation": np.array(obs, dtype=np.float32),
+            "image_obs": np.array(image_obs, dtype=np.uint8),
+            "reward": np.array(rewards, dtype=np.float32),
+            "action": np.array(acs, dtype=np.float32),
             "next_observation": np.array(next_obs, dtype=np.float32),
             "terminal": np.array(terminals, dtype=np.float32)}
 

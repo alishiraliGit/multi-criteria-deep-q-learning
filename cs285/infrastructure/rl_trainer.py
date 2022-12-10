@@ -3,23 +3,18 @@ import pickle
 import os
 import sys
 import time
-from cs285.infrastructure.atari_wrappers import ReturnWrapper
-
 import gym
 from gym import wrappers
 import numpy as np
 import torch
-from cs285.infrastructure import pytorch_util as ptu
+from sklearn.model_selection import train_test_split
 
-from cs285.infrastructure.utils import Path
+from cs285.infrastructure import pytorch_util as ptu
+from cs285.infrastructure.atari_wrappers import ReturnWrapper
 from cs285.infrastructure import utils
 from cs285.infrastructure.logger import Logger
-
 from cs285.agents.dqn_agent import DQNAgent
-from cs285.infrastructure.dqn_utils import (
-        get_wrapper_by_name,
-        register_custom_envs,
-)
+from cs285.infrastructure.dqn_utils import register_custom_envs
 
 # How many rollouts to save as videos to tensorboard
 MAX_NVIDEO = 2
@@ -53,15 +48,20 @@ class RLTrainer(object):
         self.log_video = None
         self.log_metrics = None
         self.log_params = None
-        self.offline = params['offline_RL']
-        self.params['agent_params']['offline_RL'] = params['offline_RL']
 
         #############
         # ENV
         #############
+        self.offline = params['offline']
+        self.params['agent_params']['offline'] = params['offline']
 
-        # Make the gym environment
+        # Import plotting (locally if 'obstacles' env)
+        if not (self.params['env_name'] == 'obstacles-cs285-v0'):
+            import matplotlib
+            matplotlib.use('Agg')
+
         if not self.offline:
+            # Make the gym environment
             register_custom_envs()
 
             self.env = gym.make(self.params['env_name'])
@@ -92,43 +92,7 @@ class RLTrainer(object):
                 self.best_mean_episode_reward = -float('inf')
 
             self.env.seed(seed)
-        else:
-            self.env = "MIMIC" #TODO Try to make this better later
 
-        # Import plotting (locally if 'obstacles' env)
-        if not(self.params['env_name'] == 'obstacles-cs285-v0'):
-            import matplotlib
-            matplotlib.use('Agg')
-
-        #######################################################
-        # TODO redefine all of these for offline learning
-        #######################################################
-
-        if self.offline:
-            self.params['ep_len'] = self.params['ep_len']
-            discrete = True
-            img = False
-            self.params['agent_params']['discrete'] = discrete
-
-            ob_dim = 1
-            ac_dim = 25
-            self.params['agent_params']['ac_dim'] = ac_dim
-            self.params['agent_params']['ob_dim'] = ob_dim
-
-            """
-            #Wont implement any of the video features for MIMIC
-            # Simulation timestep, will be used for video saving
-            if 'model' in dir(self.env):
-                self.fps = 1/self.env.model.opt.timestep
-            elif 'env_wrappers' in self.params:
-                self.fps = 30  # this is not actually used when using the Monitor wrapper
-            elif 'video.frames_per_second' in self.env.env.metadata.keys():
-                self.fps = self.env.env.metadata['video.frames_per_second']
-            else:
-                self.fps = 10
-            """
-
-        else:        
             # Maximum length for episodes
             self.params['ep_len'] = self.params['ep_len'] or self.env.spec.max_episode_steps
             global MAX_VIDEO_LEN
@@ -136,21 +100,22 @@ class RLTrainer(object):
 
             # Is this env continuous, or discrete?
             discrete = isinstance(self.env.action_space, gym.spaces.Discrete)
+            self.params['agent_params']['discrete'] = discrete
 
             # Are the observations images?
             img = len(self.env.observation_space.shape) > 2
 
-            self.params['agent_params']['discrete'] = discrete
-
             # Observation and action sizes
             ob_dim = self.env.observation_space.shape if img else self.env.observation_space.shape[0]
             ac_dim = self.env.action_space.n if discrete else self.env.action_space.shape[0]
+            re_dim = 1
             self.params['agent_params']['ac_dim'] = ac_dim
             self.params['agent_params']['ob_dim'] = ob_dim
+            self.params['agent_params']['re_dim'] = re_dim
 
             # Simulation timestep, will be used for video saving
             if 'model' in dir(self.env):
-                self.fps = 1/self.env.model.opt.timestep
+                self.fps = 1 / self.env.model.opt.timestep
             elif 'env_wrappers' in self.params:
                 self.fps = 30  # this is not actually used when using the Monitor wrapper
             elif 'video.frames_per_second' in self.env.env.metadata.keys():
@@ -158,12 +123,39 @@ class RLTrainer(object):
             else:
                 self.fps = 10
 
+        #####################
+        # Offline learning
+        #####################
+        else:
+            self.env = 'MIMIC'
+
+            # Load the data
+            with open(self.params['buffer_path'], 'rb') as f:
+                all_paths = pickle.load(f)
+
+            self.paths, self.test_paths = train_test_split(all_paths, test_size=0.2, random_state=seed)
+
+            # Is this env continuous, or discrete?
+            discrete = True
+            self.params['agent_params']['discrete'] = discrete
+
+            # Are the observations images?
+            img = False
+
+            # Observation and action sizes
+            ob_dim = 1
+            ac_dim = 25
+            re_dim = 1
+            self.params['agent_params']['ac_dim'] = ac_dim
+            self.params['agent_params']['ob_dim'] = ob_dim
+            self.params['agent_params']['re_dim'] = re_dim
+
         #############
         # AGENT
         #############
 
         agent_class = self.params['agent_class']
-        self.agent = agent_class(self.env, self.params['agent_params']) #TODO enable offline learning here
+        self.agent = agent_class(self.env, self.params['agent_params'])
 
     def run_training_loop(self, n_iter, collect_policy, eval_policy,
                           initial_expertdata=None, relabel_with_expert=False,
@@ -210,48 +202,38 @@ class RLTrainer(object):
 
             # Collect trajectories, to be used for training
             # TODO: Fix: For single step trajectories, agent should be DQNAgent.
-            if isinstance(self.agent, DQNAgent) and not self.offline:
-                # Only perform an env step and add to replay buffer for DQN
-                self.agent.step_env()
-                # The step_env() automatically adds to replay buffer so paths are not required
-                paths, envsteps_this_batch, train_video_paths = None, 1, None
-            elif self.offline & itr==0:
-                if self.params['buffer_path'] == None:
-                    print('Please provide a buffer_path to enable offline learning')
-                    break
-                with open(self.params['buffer_path'], 'rb') as f:
-                    all_paths = pickle.load(f)
-                num_rollouts = int(round(len(all_paths)*0.8,0))
-                rand_indices_train = np.random.RandomState(seed=42).permutation(len(all_paths),)[:num_rollouts]
-                rand_indices_test = np.random.RandomState(seed=42).permutation(len(all_paths),)[num_rollouts:]
-                train_paths = np.array(all_paths)[rand_indices_train]
-                test_paths = list(np.array(all_paths)[rand_indices_test])
-                paths = list(train_paths)
-            
-                envsteps_this_batch = sum([len(path['reward']) for path in paths]) #TODO check whether this variable is worth the compute
-                train_video_paths = None
-            elif self.offline:
-                pass
+            if not self.offline:
+                if isinstance(self.agent, DQNAgent):
+                    # Only perform an env step and add to replay buffer for DQN
+                    self.agent.step_env()
+                    # The step_env() automatically adds to replay buffer so paths are not required
+                    paths, envsteps_this_batch, train_video_paths = None, 1, None
+                else:
+                    use_batch_size = self.params['batch_size']
+                    if itr == 0:
+                        use_batch_size = self.params['batch_size_initial']
+                    paths, envsteps_this_batch, train_video_paths = (
+                        self.collect_training_trajectories(
+                            itr, initial_expertdata, collect_policy, use_batch_size)
+                    )
+                test_paths = None
             else:
-                use_batch_size = self.params['batch_size']
-                if itr == 0:
-                    use_batch_size = self.params['batch_size_initial']
-                paths, envsteps_this_batch, train_video_paths = (
-                    self.collect_training_trajectories(
-                        itr, initial_expertdata, collect_policy, use_batch_size)
-                )
+                paths, test_paths = self.paths, self.test_paths
 
-            if self.offline:
-                self.total_envsteps = envsteps_this_batch
-            else:   
+                envsteps_this_batch = sum([len(path['reward']) for path in paths])
+                train_video_paths = None
+
+            if not self.offline:
                 self.total_envsteps += envsteps_this_batch
+            else:   
+                self.total_envsteps = envsteps_this_batch
 
             # Relabel the collected obs with actions from a provided expert policy
             if relabel_with_expert and itr >= start_relabel_with_expert:
                 paths = self.do_relabel_with_expert(expert_policy, paths)
 
             # Add collected data to replay buffer
-            if self.offline & itr>0:
+            if self.offline and itr > 0:
                 pass
             else:
                 self.agent.add_to_replay_buffer(paths)
@@ -262,17 +244,15 @@ class RLTrainer(object):
 
             all_logs = self.train_agent()
 
-            #print(all_logs)
-
-            # log/save
+            # Log/save
             if self.log_video or self.log_metrics:
-                # perform logging
+                # Perform logging
                 print('\nBeginning logging procedure...')
                 if isinstance(self.agent, DQNAgent):
-                    if self.offline:
-                        self.perform_offline_logging(itr, test_paths, eval_policy, all_logs)
-                    else:
+                    if not self.offline:
                         self.perform_dqn_logging(all_logs)
+                    else:
+                        self.perform_dqn_offline_logging(itr, test_paths, all_logs)
                 else:
                     self.perform_logging(itr, paths, eval_policy, train_video_paths, all_logs)
 
@@ -351,8 +331,7 @@ class RLTrainer(object):
 
             # Use the sampled data to train an agent
             train_log = self.agent.train(ob_batch, ac_batch, re_batch, next_ob_batch, terminal_batch)
-            #print('printing train log')
-            #print(train_log)
+
             all_logs.append(train_log)
 
         return all_logs
@@ -463,57 +442,55 @@ class RLTrainer(object):
 
             self.logger.flush()
     
-    def perform_offline_logging(self, itr, eval_paths, eval_policy, all_logs):
+    def perform_dqn_offline_logging(self, itr, eval_paths, all_logs):
 
         last_log = all_logs[-1]
 
-        #######################
+        if len(last_log) == 0:
+            return
 
-        # Collect eval trajectories, for logging
-        #print("\nCollecting data for eval...")
-        #eval_paths, eval_envsteps_this_batch = \
-            #utils.sample_trajectories(self.env, eval_policy, self.params['eval_batch_size'], self.params['ep_len'])
+        all_q_values = []
+        all_rtgs = []
+        for eval_path in eval_paths:
+            obs_n = eval_path['observation']
+            if obs_n.ndim == 1:
+                obs_n = obs_n[:, np.newaxis]
 
-        #######################
+            ac_n = eval_path['action']
+            re_n = eval_path['reward']
+
+            # Get the Q-values
+            qa_values_na = self.agent.critic.qa_values(obs_n)
+
+            qa_values_na = ptu.from_numpy(qa_values_na)
+            ac_n = ptu.from_numpy(ac_n).to(torch.long)
+
+            q_values_n = torch.gather(qa_values_na, 1, ac_n.unsqueeze(1)).squeeze(1)
+
+            q_values_n = ptu.to_numpy(q_values_n)
+
+            # Get reward-to-go
+            rtg_n = utils.discounted_cumsum(re_n, self.params['gamma'])
+
+            # Append
+            all_q_values.append(q_values_n)
+            all_rtgs.append(rtg_n)
+
+        all_q_values = np.concatenate(all_q_values, axis=0)
+        all_rtgs = np.concatenate(all_rtgs, axis=0)
+
+        rho = np.corrcoef(all_rtgs, all_q_values)[0, 1]
 
         # save eval metrics
         if self.log_metrics:
-            # returns, for logging
-            #train_returns = [path["reward"].sum() for path in eval_paths]
-            #eval_returns = [eval_path["reward"].sum() for eval_path in eval_paths]
-
-            # episode lengths, for logging
-            #train_ep_lens = [len(path["reward"]) for path in eval_paths]
-            #eval_ep_lens = [len(eval_path["reward"]) for eval_path in eval_paths]
-
             # decide what to log
             logs = OrderedDict()
-            if len(last_log) > 0:
-                logs['Training_Loss'] = last_log['Training Loss']
-            """
-            logs["Eval_AverageReturn"] = np.mean(eval_returns)
-            logs["Eval_StdReturn"] = np.std(eval_returns)
-            logs["Eval_MaxReturn"] = np.max(eval_returns)
-            logs["Eval_MinReturn"] = np.min(eval_returns)
-            logs["Eval_AverageEpLen"] = np.mean(eval_ep_lens)
-
-            logs["Train_AverageReturn"] = np.mean(train_returns)
-            logs["Train_StdReturn"] = np.std(train_returns)
-            logs["Train_MaxReturn"] = np.max(train_returns)
-            logs["Train_MinReturn"] = np.min(train_returns)
-            logs["Train_AverageEpLen"] = np.mean(train_ep_lens)
-
-            logs["Train_EnvstepsSoFar"] = self.total_envsteps
-            """
-            logs["TimeSinceStart"] = time.time() - self.start_time
+            logs['Training_Loss'] = last_log['Training Loss']
+            logs['Rho'] = rho
+            logs['TimeSinceStart'] = time.time() - self.start_time
             logs.update(last_log)
 
-            # Changed by Ali
-            #if itr == 0:
-                #initial_return = np.mean(train_returns)
-                #logs["Initial_DataCollection_AverageReturn"] = initial_return
-
-            # perform the logging
+            # Perform the logging
             for key, value in logs.items():
                 print('{} : {}'.format(key, value))
                 self.logger.log_scalar(value, key, itr)

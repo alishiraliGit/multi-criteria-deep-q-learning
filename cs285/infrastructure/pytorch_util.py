@@ -1,7 +1,7 @@
 from typing import Union
 from contextlib import contextmanager
 
-
+import numpy as np
 import torch
 from torch import nn
 
@@ -54,6 +54,17 @@ def build_mlp(
     layers.append(nn.Linear(in_size, output_size))
     layers.append(output_activation)
     return nn.Sequential(*layers)
+
+
+class MultiDimLinear(torch.nn.Linear):
+    def __init__(self, in_features, out_shape, **kwargs):
+        self.out_shape = out_shape
+        out_features = np.prod(out_shape).item()
+        super().__init__(in_features, out_features, **kwargs)
+
+    def forward(self, x):
+        out = super().forward(x)
+        return out.reshape((len(x), *self.out_shape))
 
 
 device = None

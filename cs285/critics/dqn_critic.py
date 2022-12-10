@@ -7,6 +7,7 @@ from torch import nn
 from cs285.infrastructure import pytorch_util as ptu
 from cs285.infrastructure.dqn_utils import get_maximizer_from_available_actions
 from cs285.critics.base_critic import BaseCritic
+from cs285.policies.pareto_opt_policy import ParetoOptimalPolicy
 
 
 class DQNCritic(BaseCritic):
@@ -112,7 +113,7 @@ class DQNCritic(BaseCritic):
         ):
             target_param.data.copy_(param.data)
 
-    def qa_values(self, obs):
+    def qa_values(self, obs:  np.ndarray) -> np.ndarray:
         obs = ptu.from_numpy(obs)
         qa_values = self.q_net(obs)
         return ptu.to_numpy(qa_values)
@@ -140,6 +141,133 @@ class DQNCritic(BaseCritic):
 
         dqn_critic.q_net.load_state_dict(checkpoint['q_net_state_dict'])
         dqn_critic.q_net_target.load_state_dict(checkpoint['q_net_target_state_dict'])
+
+        return dqn_critic
+
+
+class MDQNCritic(BaseCritic):
+
+    def __init__(self, hparams, optimizer_spec, **kwargs):
+        super().__init__(**kwargs)
+
+        self.hparams = hparams
+
+        # Env
+        self.env_name = hparams['env_name']
+        self.ob_dim = hparams['ob_dim']
+
+        if isinstance(self.ob_dim, int):
+            self.input_shape = (self.ob_dim,)
+        else:
+            self.input_shape = hparams['input_shape']
+
+        self.ac_dim = hparams['ac_dim']
+        self.re_dim = hparams['re_dim']
+
+        self.grad_norm_clipping = hparams['grad_norm_clipping']
+        self.gamma = hparams['gamma']
+
+        # Networks
+        network_initializer = hparams['q_func']
+        self.mq_net = network_initializer(self.ob_dim, (self.ac_dim, self.re_dim))
+
+        # Optimization
+        self.optimizer_spec = optimizer_spec
+        self.optimizer = self.optimizer_spec.constructor(
+            self.mq_net.parameters(),
+            **self.optimizer_spec.optim_kwargs
+        )
+        self.learning_rate_scheduler = optim.lr_scheduler.LambdaLR(
+            self.optimizer,
+            self.optimizer_spec.learning_rate_schedule,
+        )
+
+        self.loss = nn.SmoothL1Loss()  # AKA Huber loss
+
+        self.mq_net.to(ptu.device)
+
+    def update(self, ob_no, ac_n, next_ob_no, reward_nr, terminal_n):
+        """
+            Update the parameters of the critic.
+        """
+        ob_no = ptu.from_numpy(ob_no)
+        ac_n = ptu.from_numpy(ac_n).to(torch.long)  # If action space is discrete, ac_n
+        next_ob_no = ptu.from_numpy(next_ob_no)
+        reward_nr = ptu.from_numpy(reward_nr)
+        terminal_n = ptu.from_numpy(terminal_n)
+
+        # Get the current Q-values
+        qa_t_values_nar = self.mq_net(ob_no)
+        q_t_values_nr = torch.gather(
+            qa_t_values_nar,
+            1,
+            ac_n.unsqueeze(1).unsqueeze(2).expand(-1, 1, self.re_dim)
+        ).squeeze(1)
+
+        # Compute the Q-values for the next observation
+        qa_tp1_values_nar = self.mq_net(next_ob_no).detach()
+
+        # Select the next action
+        available_actions_n = [
+            ParetoOptimalPolicy.find_strong_pareto_optimal_actions(vals, eps=0)
+            for vals in ptu.to_numpy(qa_tp1_values_nar)
+        ]
+
+        ac_tp1_n = np.array([np.random.choice(actions) for actions in available_actions_n])
+        ac_tp1_n = ptu.from_numpy(ac_tp1_n)
+
+        # Find Q-values for the selected actions
+        q_tp1_values_nr = torch.gather(
+            qa_tp1_values_nar,
+            1,
+            ac_tp1_n.unsqueeze(1).unsqueeze(2).expand(-1, 1, self.re_dim)
+        ).squeeze(1)
+
+        # Compute targets for minimizing Bellman error
+        # currentReward + self.gamma * qValuesOfNextTimestep * (not terminal)
+        target_nr = reward_nr + self.gamma * q_tp1_values_nr * (1 - terminal_n.unsqueeze(1))
+        target_nr = target_nr.detach()
+
+        assert q_t_values_nr.shape == target_nr.shape
+
+        loss = self.loss(q_t_values_nr, target_nr)
+
+        self.optimizer.zero_grad()
+        loss.backward()
+        utils.clip_grad_value_(self.mq_net.parameters(), self.grad_norm_clipping)
+        self.optimizer.step()
+        self.learning_rate_scheduler.step()
+
+        return {
+            'Training Loss': ptu.to_numpy(loss),
+        }
+
+    def qa_values(self, obs):
+        obs = ptu.from_numpy(obs)
+        qa_values = self.mq_net(obs)
+        return ptu.to_numpy(qa_values)
+
+    def save(self, save_path):
+        torch.save(
+            {
+                'hparams': self.hparams,
+                'optimizer_spec': self.optimizer_spec,
+                'optimizer_state_dict': self.optimizer.state_dict(),
+                'q_net_state_dict': self.mq_net.state_dict(),
+            }, save_path)
+
+    @staticmethod
+    def load(load_path):
+        checkpoint = torch.load(load_path)
+
+        dqn_critic = MDQNCritic(
+            hparams=checkpoint['hparams'],
+            optimizer_spec=checkpoint['optimizer_spec']
+        )
+
+        dqn_critic.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+
+        dqn_critic.mq_net.load_state_dict(checkpoint['q_net_state_dict'])
 
         return dqn_critic
 

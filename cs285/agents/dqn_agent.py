@@ -3,16 +3,16 @@ import numpy as np
 from cs285.infrastructure.dqn_utils import MemoryOptimizedReplayBuffer, PiecewiseSchedule
 from cs285.agents.base_agent import BaseAgent
 from cs285.policies.argmax_policy import ArgMaxPolicy, PrunedArgMaxPolicy
-from cs285.critics.dqn_critic import DQNCritic, PrunedDQNCritic
+from cs285.policies.pareto_opt_policy import RandomParetoOptimalActionPolicy
+from cs285.critics.dqn_critic import DQNCritic, PrunedDQNCritic, MDQNCritic
 
 
 class DQNAgent(object):
     def __init__(self, env, agent_params):
 
         self.env = env
+        self.offline = agent_params['offline']
         self.agent_params = agent_params
-
-        
 
         # Learning params
         self.batch_size = agent_params['batch_size']
@@ -22,16 +22,13 @@ class DQNAgent(object):
         self.exploration = agent_params['exploration_schedule']
         self.optimizer_spec = agent_params['optimizer_spec']
 
-        self.offline_RL = agent_params['offline_RL']
-
         # Env params
-        if not self.offline_RL:
+        if not self.offline:
             self.last_obs = self.env.reset()
             self.num_actions = agent_params['ac_dim']
         else:
-            self.last_obs = None # TODO check that this does not break anything
+            self.last_obs = None  # TODO check that this does not break anything
             self.num_actions = agent_params['ac_dim']
-
 
         # Pruning
         prune = True if 'action_pruner' in agent_params else False
@@ -41,13 +38,15 @@ class DQNAgent(object):
             self.critic = PrunedDQNCritic(agent_params, self.optimizer_spec, agent_params['action_pruner'])
             self.actor = PrunedArgMaxPolicy(self.critic, agent_params['action_pruner'])
         else:
-            self.critic = DQNCritic(agent_params, self.optimizer_spec)
-            self.actor = ArgMaxPolicy(self.critic)
+            if self.agent_params['re_dim'] == 1:
+                self.critic = DQNCritic(agent_params, self.optimizer_spec)
+                self.actor = ArgMaxPolicy(self.critic)
+            else:
+                self.critic = MDQNCritic(agent_params, self.optimizer_spec)
+                self.actor = RandomParetoOptimalActionPolicy(self.critic, )
 
         # Replay buffer
         lander = agent_params['env_name'].startswith('LunarLander')
-        if self.offline_RL:
-            agent_params['replay_buffer_size'] = 20912 # TODO fix this later
 
         self.replay_buffer = MemoryOptimizedReplayBuffer(
             agent_params['replay_buffer_size'], agent_params['frame_history_len'], lander=lander)
@@ -60,7 +59,7 @@ class DQNAgent(object):
     def add_to_replay_buffer(self, paths):
         # step_env() has already added the transition to the replay buffer (in case of online learning)
 
-        if self.offline_RL: 
+        if self.offline:
             self.replay_buffer.store_offline_data(paths)
         else:
             pass

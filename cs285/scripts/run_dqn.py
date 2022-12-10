@@ -45,13 +45,13 @@ def main():
     parser.add_argument('--which_gpu', '-gpu_id', default=0)
 
     # Logging
-    parser.add_argument('--scalar_log_freq', type=int, default=int(1e4))
+    parser.add_argument('--scalar_log_freq', type=int, default=int(2e3))
     parser.add_argument('--video_log_freq', type=int, default=-1)
-    parser.add_argument('--params_log_freq', type=int, default=int(1e4))  # Saves the trained networks
+    parser.add_argument('--params_log_freq', type=int, default=int(2e3))  # Saves the trained networks
 
-    #MIMIC offline learning params
-    parser.add_argument('--offline_RL', type=bool, default=False)
-    parser.add_argument('--buffer_path', default=None) #type=int,
+    # Offline learning params
+    parser.add_argument('--offline', action='store_true')
+    parser.add_argument('--buffer_path', type=str, default=None)
 
     args = parser.parse_args()
 
@@ -63,6 +63,9 @@ def main():
     # Decision booleans
     customize_rew = False if params['env_rew_weights'] is None else True
     prune = False if params['pruning_file_prefix'] is None else True
+
+    if params['offline'] and params['buffer_path'] is None:
+        raise Exception('Please provide a buffer_path to enable offline learning')
 
     ##################################
     # Create directory for logging
@@ -111,7 +114,7 @@ def main():
     params['agent_class'] = DQNAgent
     params['agent_params'] = params
 
-    print(params['offline_RL'])
+    print(params['offline'])
 
     rl_trainer = RLTrainer(params)
     rl_trainer.run_training_loop(
