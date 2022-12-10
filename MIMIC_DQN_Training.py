@@ -8,7 +8,7 @@ command_stem = [
 
 name = ['baseline','SOFA1','SOFA1c','SOFA2','SOFA2c','SOFAd2','lac1','lac1c','lac2','lac2c']#
 
-reward_path = ['1 0 0 0 0 0 0 0 0 0 0', '0 0 1 0 0 0 0 0 0 0 0', '0 0 0 1 0 0 0 0 0 0 0', '0 0 0 0 1 0 0 0 0 0 0', '0 0 0 0 0 0 1 0 0 0 0', 
+reward_weight = ['1 0 0 0 0 0 0 0 0 0 0', '0 0 1 0 0 0 0 0 0 0 0', '0 0 0 1 0 0 0 0 0 0 0', '0 0 0 0 1 0 0 0 0 0 0', '0 0 0 0 0 0 1 0 0 0 0', 
                '0 0 0 0 0 0 1 0 0 0 0', '0 0 0 0 0 0 0 1 0 0 0', '0 0 0 0 0 0 0 0 1 0 0', '0 0 0 0 0 0 0 0 0 1 0', '0 0 0 0 0 0 0 0 0 0 1']#'./Replay_buffer_extraction/Paths_sparse_90d_rew.pkl',
 
 """
@@ -21,7 +21,7 @@ reward_path = ['./Replay_buffer_extraction/Paths_Reward_SOFA_1_binary.pkl','./Re
 commands = []
 for command in command_stem:
     for i in range(len(name)):
-        commands.append(command.format(r=name[i],p=reward_path[i]))
+        commands.append(command.format(r=name[i],w=reward_weight[i]))
 
 if __name__ == "__main__":
     for command in commands:
