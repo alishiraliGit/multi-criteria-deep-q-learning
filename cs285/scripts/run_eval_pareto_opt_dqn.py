@@ -35,6 +35,10 @@ def main():
     # Pruning
     parser.add_argument('--pruning_eps', type=float, default=0., help='Look at pareto_opt_policy.')
     parser.add_argument('--mdqn', action='store_true')
+    parser.add_argument('--optimistic_mdqn', action='store_true')
+    parser.add_argument('--consistent_mdqn', action='store_true')
+    parser.add_argument('--uniform_consistent_mdqn', action='store_true')
+    parser.add_argument('--consistency_alpha', type=float, default=1, help='Look at MDQN in critics.')
 
     # System
     parser.add_argument('--seed', type=int, default=1)
@@ -48,6 +52,10 @@ def main():
 
     # Decision booleans
     customize_rew = False if params['env_rew_weights'] is None else True
+
+    if params['optimistic_mdqn'] or params['consistent_mdqn'] or params['uniform_consistent_mdqn']:
+        params['mdqn'] = True
+
     mdqn = params['mdqn']
 
     ##################################

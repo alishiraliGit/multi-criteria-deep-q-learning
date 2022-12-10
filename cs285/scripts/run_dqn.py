@@ -40,7 +40,9 @@ def main():
 
     parser.add_argument('--pruning_file_prefix', type=str, default=None, help='For PrunedDQN only.')
     parser.add_argument('--mdqn', action='store_true')
+    parser.add_argument('--optimistic_mdqn', action='store_true')
     parser.add_argument('--consistent_mdqn', action='store_true')
+    parser.add_argument('--uniform_consistent_mdqn', action='store_true')
     parser.add_argument('--consistency_alpha', type=float, default=1, help='Look at MDQN in critics.')
 
     # System
@@ -74,7 +76,7 @@ def main():
     if params['offline'] and params['buffer_path'] is None:
         raise Exception('Please provide a buffer_path to enable offline learning')
 
-    if params['consistent_mdqn']:
+    if params['optimistic_mdqn'] or params['consistent_mdqn'] or params['uniform_consistent_mdqn']:
         params['mdqn'] = True
 
     ##################################

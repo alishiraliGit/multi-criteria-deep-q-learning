@@ -188,7 +188,11 @@ class MDQNCritic(BaseCritic):
 
         # Pruning
         self.eps = hparams['pruning_eps']
+        self.optimistic = hparams['optimistic_mdqn']
+        self.uniform_consistent = hparams['uniform_consistent_mdqn']
         self.consistent = hparams['consistent_mdqn']
+        if np.sum([self.optimistic, self.consistent, self.uniform_consistent]) > 1:
+            raise Exception('MDQN type is inconsistently defined!')
         self.alpha = hparams['consistency_alpha']
 
     def update(self, ob_no, ac_n, next_ob_no, reward_nr, terminal_n):
@@ -208,42 +212,87 @@ class MDQNCritic(BaseCritic):
         # Compute the Q-values for the next observation
         qa_tp1_values_nar = self.mq_net(next_ob_no).detach()
 
-        # Select the next action
-        available_actions_n = [
-            ParetoOptimalPolicy.find_strong_pareto_optimal_actions(vals, eps=self.eps)
-            for vals in ptu.to_numpy(qa_tp1_values_nar)
-        ]
+        # Find next actions and Q-values based on MDQN type
 
-        ac_tp1_n = np.array([np.random.choice(actions) for actions in available_actions_n])
-        ac_tp1_n = ptu.from_numpy(ac_tp1_n).to(torch.long)
+        #####################
+        # Optimistic
+        #####################
+        if self.optimistic:
+            q_tp1_values_nr, _ = qa_tp1_values_nar.max(dim=1)
 
-        # Find Q-values for the selected actions
-        q_tp1_values_nr = gather_by_actions(qa_tp1_values_nar, ac_tp1_n)
+        #####################
+        # Uniform consistent
+        #####################
+        # Select the action for uniform consistent
+        elif self.uniform_consistent:
+            # Draw ws
+            w1_nr = torch.rand(q_t_values_nr.shape)
+            w2_nr = torch.rand(q_t_values_nr.shape)
 
-        # Update the action for consistency
-        if self.consistent:
-            # Draw a new action (prime) and find its Q-values
-            acp_tp1_n = np.array([np.random.choice(actions) for actions in available_actions_n])
-            acp_tp1_n = ptu.from_numpy(acp_tp1_n).to(torch.long)
-            qp_tp1_values_nr = gather_by_actions(qa_tp1_values_nar, acp_tp1_n)
-
-            # Find inner-products of Q_a and Q_a'
-            prod_t_tp1_n = (q_t_values_nr.detach() * q_tp1_values_nr).sum(dim=1)
-            prodp_t_tp1_n = (q_t_values_nr.detach() * qp_tp1_values_nr).sum(dim=1)
+            # Find the inner-products
+            prod_1_n = (q_t_values_nr.detach() * w1_nr).sum(dim=1)
+            prod_2_n = (q_t_values_nr.detach() * w2_nr).sum(dim=1)
 
             # Find likelihood ratio
-            likelihood_n = torch.exp(self.alpha*prodp_t_tp1_n)/torch.exp((self.alpha*prod_t_tp1_n))
+            likelihood_n = torch.exp(self.alpha * prod_2_n) / torch.exp(self.alpha * prod_1_n)
 
-            # Select the better action
+            # Select the better w
             rnd_n = torch.rand(likelihood_n.shape)
-            choice_n = (rnd_n < likelihood_n)*1
+            choice_n = (rnd_n < likelihood_n) * 1
 
-            acs_tp1_n2 = torch.stack([ac_tp1_n, acp_tp1_n], dim=1)
+            ws_n2r = torch.stack([w1_nr, w2_nr], dim=1)
 
-            ac_tp1_n = gather_by_actions(acs_tp1_n2, choice_n)
+            w_nr = gather_by_actions(ws_n2r, choice_n)
+
+            # Get the best actions for the selected w
+            qa_tp1_values_na = (qa_tp1_values_nar * w_nr.unsqueeze(1).expand(qa_tp1_values_nar.shape)).sum(dim=2)
+
+            ac_tp1_n = qa_tp1_values_na.argmax(dim=1)
+
+            q_tp1_values_nr = gather_by_actions(qa_tp1_values_nar, ac_tp1_n)
+
+        else:
+            #####################
+            # MDQN default
+            #####################
+            # Select the next action
+            available_actions_n = [
+                ParetoOptimalPolicy.find_strong_pareto_optimal_actions(vals, eps=self.eps)
+                for vals in ptu.to_numpy(qa_tp1_values_nar)
+            ]
+
+            ac_tp1_n = np.array([np.random.choice(actions) for actions in available_actions_n])
+            ac_tp1_n = ptu.from_numpy(ac_tp1_n).to(torch.long)
 
             # Find Q-values for the selected actions
             q_tp1_values_nr = gather_by_actions(qa_tp1_values_nar, ac_tp1_n)
+
+            #####################
+            # Consistent
+            #####################
+            if self.consistent:
+                # Draw a new action (prime) and find its Q-values
+                acp_tp1_n = np.array([np.random.choice(actions) for actions in available_actions_n])
+                acp_tp1_n = ptu.from_numpy(acp_tp1_n).to(torch.long)
+                qp_tp1_values_nr = gather_by_actions(qa_tp1_values_nar, acp_tp1_n)
+
+                # Find inner-products of Q_a and Q_a'
+                prod_t_tp1_n = (q_t_values_nr.detach() * q_tp1_values_nr).sum(dim=1)
+                prodp_t_tp1_n = (q_t_values_nr.detach() * qp_tp1_values_nr).sum(dim=1)
+
+                # Find likelihood ratio
+                likelihood_n = torch.exp(self.alpha*prodp_t_tp1_n)/torch.exp((self.alpha*prod_t_tp1_n))
+
+                # Select the better action
+                rnd_n = torch.rand(likelihood_n.shape)
+                choice_n = (rnd_n < likelihood_n)*1
+
+                acs_tp1_n2 = torch.stack([ac_tp1_n, acp_tp1_n], dim=1)
+
+                ac_tp1_n = gather_by_actions(acs_tp1_n2, choice_n)
+
+                # Find Q-values for the selected actions
+                q_tp1_values_nr = gather_by_actions(qa_tp1_values_nar, ac_tp1_n)
 
         # Compute targets for minimizing Bellman error
         # currentReward + self.gamma * qValuesOfNextTimestep * (not terminal)
