@@ -143,7 +143,8 @@ class RLTrainer(object):
             img = False
 
             # Observation and action sizes
-            ob_dim = 1
+            ob_shape = self.paths[0]['observation'].shape
+            ob_dim = 1 if len(ob_shape) == 1 else ob_shape[1]
             ac_dim = 25
             re_dim = 1
             self.params['agent_params']['ac_dim'] = ac_dim
