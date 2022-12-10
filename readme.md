@@ -112,7 +112,7 @@ This implements offline DQN training for the MIMIC data the reward weights each 
 So for instance --env_rew_weights 1 0 0 0 0 0 0 0 0 0 0 creates the sparse reward baseline DQN model.
 
 ```shell
- python cs285/scripts/run_dqn.py \
+python cs285/scripts/run_dqn.py \
 --exp_name ignore_default \
 --env_name MIMIC \
 --env_rew_weights 1 0 0 0 0 0 0 0 0 0 0 \
