@@ -8,7 +8,7 @@ sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 
 
 from cs285.infrastructure.rl_evaluator import RLEvaluator
 from cs285.agents.dqn_agent import LoadedDQNAgent
-from cs285.agents.pareto_opt_agent import LoadedParetoOptDQNAgent
+from cs285.agents.pareto_opt_agent import LoadedParetoOptDQNAgent, LoadedParetoOptMDQNAgent
 from cs285.infrastructure.dqn_utils import get_env_kwargs
 
 
@@ -33,7 +33,8 @@ def main():
     parser.add_argument('--opt_file_prefix', type=str, required=True)
 
     # Pruning
-    parser.add_argument('--pruning_eps', type=float, default=0., help='Look at ParetoOptimalPolicy.')
+    parser.add_argument('--pruning_eps', type=float, default=0., help='Look at pareto_opt_policy.')
+    parser.add_argument('--mdqn', action='store_true')
 
     # System
     parser.add_argument('--seed', type=int, default=1)
@@ -47,6 +48,7 @@ def main():
 
     # Decision booleans
     customize_rew = False if params['env_rew_weights'] is None else True
+    mdqn = params['mdqn']
 
     ##################################
     # Create directory for logging
@@ -83,9 +85,15 @@ def main():
     ##################################
     # Load saved models
     ##################################
-    pruning_folder_paths = glob.glob(os.path.join(data_path, params['pruning_file_prefix'] + '*'))
-    pruning_file_paths = [os.path.join(f, 'dqn_agent.pt') for f in pruning_folder_paths]
-    pruning_agent = LoadedParetoOptDQNAgent(file_paths=pruning_file_paths, pruning_eps=params['pruning_eps'])
+    if mdqn:
+        pruning_folder_paths = glob.glob(os.path.join(data_path, params['pruning_file_prefix'] + '*'))
+        assert len(pruning_folder_paths) == 1
+        pruning_file_path = os.path.join(pruning_folder_paths[0], 'dqn_agent.pt')
+        pruning_agent = LoadedParetoOptMDQNAgent(file_path=pruning_file_path, pruning_eps=params['pruning_eps'])
+    else:
+        pruning_folder_paths = glob.glob(os.path.join(data_path, params['pruning_file_prefix'] + '*'))
+        pruning_file_paths = [os.path.join(f, 'dqn_agent.pt') for f in pruning_folder_paths]
+        pruning_agent = LoadedParetoOptDQNAgent(file_paths=pruning_file_paths, pruning_eps=params['pruning_eps'])
 
     opt_folder_path = glob.glob(os.path.join(data_path, params['opt_file_prefix'] + '*'))[0]
     opt_file_path = os.path.join(opt_folder_path, 'dqn_agent.pt')
