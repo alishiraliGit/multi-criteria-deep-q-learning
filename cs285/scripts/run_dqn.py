@@ -45,13 +45,16 @@ def main():
     parser.add_argument('--which_gpu', '-gpu_id', default=0)
 
     # Logging
-    parser.add_argument('--scalar_log_freq', type=int, default=int(2e3))
+    parser.add_argument('--scalar_log_freq', type=int, default=int(1e4))
     parser.add_argument('--video_log_freq', type=int, default=-1)
-    parser.add_argument('--params_log_freq', type=int, default=int(2e3))  # Saves the trained networks
+    parser.add_argument('--params_log_freq', type=int, default=int(1e4))  # Saves the trained networks
 
     # Offline learning params
     parser.add_argument('--offline', action='store_true')
     parser.add_argument('--buffer_path', type=str, default=None)
+
+    # Data path formatting
+    parser.add_argument('--no_weights_in_path', action='store_true')
 
     args = parser.parse_args()
 
@@ -76,9 +79,13 @@ def main():
         os.makedirs(data_path)
 
     if customize_rew:
-        logdir = args.exp_name + '_' + args.env_name \
-                 + '-'.join([str(w) for w in params['env_rew_weights']]) \
-                 + '_' + time.strftime('%d-%m-%Y_%H-%M-%S')
+        if params['no_weights_in_path']:
+            logdir = args.exp_name + '_' + args.env_name \
+                    + '_' + time.strftime('%d-%m-%Y_%H-%M-%S')
+        else:
+            logdir = args.exp_name + '_' + args.env_name \
+                    + '-'.join([str(w) for w in params['env_rew_weights']]) \
+                    + '_' + time.strftime('%d-%m-%Y_%H-%M-%S')
     else:
         logdir = args.exp_name + '_' + args.env_name + '_' + time.strftime('%d-%m-%Y_%H-%M-%S')
 

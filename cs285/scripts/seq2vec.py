@@ -22,10 +22,13 @@ def get_sentences_from_paths(paths):
 
 if __name__ == '__main__':
     # Load data
-    data_folder_ = os.path.join('..', '..', 'Replay_buffer_extraction')
-    data_name_ = 'Paths_sparse_90d_rew.pkl'
+    #data_folder_ = os.path.join('..', '..', 'Replay_buffer_extraction')
+    data_folder_ = os.path.join('Replay_buffer_extraction')
+    data_name_ = 'Paths_all_rewards.pkl'
 
-    paths_ = load_data(os.path.join(data_folder_, data_name_))
+    print(os.path.join(data_folder_, data_name_))
+
+    paths_ = load_data(os.path.join(data_folder_, data_name_).replace("\\","/"))
 
     # Get sentences
     sentences_ = get_sentences_from_paths(paths_)

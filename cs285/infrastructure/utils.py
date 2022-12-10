@@ -324,3 +324,28 @@ def sample_random_trajectories(env, min_timesteps_per_batch, max_path_length, re
         print('At timestep:    ', timesteps_this_batch, '/', min_timesteps_per_batch, end='\r')
     return paths, timesteps_this_batch
 
+############################################
+############################################
+# Offline Learning Reward formatting
+############################################
+############################################
+
+def format_reward(paths,weights):
+    """
+    Path structure is :
+    #   'sparse_90d_rew', 'Reward_matrix_paper',
+    #   'Reward_SOFA_1_continous', 'Reward_SOFA_1_binary',
+    #   'Reward_SOFA_2_continous', 'Reward_SOFA_2_binary',
+    #   'Reward_SOFA_change2_binary', 'Reward_lac_1_continous',
+    #   'Reward_lac_1_binary', 'Reward_lac_2_continous', 'Reward_lac_2_binary']
+    """
+    assert len(weights) == 11
+
+    new_paths = []
+    for path in paths:
+        path['reward'] = weights[0]*path['sparse_90d_rew'] + weights[1]*path['Reward_matrix_paper'] + weights[2]*path['Reward_SOFA_1_continous'] + weights[3]*path['Reward_SOFA_1_binary'] + \
+                        weights[4]*path['Reward_SOFA_2_continous'] + weights[5]*path['Reward_SOFA_2_binary'] + weights[6]*path['Reward_SOFA_change2_binary'] + weights[7]*path['Reward_lac_1_continous'] + \
+                        weights[8]*path['Reward_lac_1_binary'] + weights[9]*path['Reward_lac_2_continous'] + weights[10]*path['Reward_lac_2_binary'] 
+        new_paths.append(path)
+    
+    return new_paths

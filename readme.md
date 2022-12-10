@@ -92,3 +92,14 @@ to read the results of Pareto optimality evaluation.
 ## Sample data
 Folder [data](data) has some sample runs with `exp_name=p4`. 
 Do not push your data unless we want them for the final report.
+
+### my own trials
+
+ python cs285/scripts/run_dqn.py \
+--exp_name ignore_default \
+--env_name MIMIC \
+--env_rew_weights 0 0 1 1 1 1 1 1 1 1 1 \
+--double_q \
+--seed 1 \
+--offline \
+--no_weights_in_path --buffer_path './Replay_buffer_extraction/Encoded_paths_all_rewards.pkl'

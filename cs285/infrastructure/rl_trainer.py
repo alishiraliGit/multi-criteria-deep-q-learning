@@ -133,6 +133,8 @@ class RLTrainer(object):
             with open(self.params['buffer_path'], 'rb') as f:
                 all_paths = pickle.load(f)
 
+            all_paths = utils.format_reward(all_paths,params['env_rew_weights'])
+
             self.paths, self.test_paths = train_test_split(all_paths, test_size=0.2, random_state=seed)
 
             # Is this env continuous, or discrete?

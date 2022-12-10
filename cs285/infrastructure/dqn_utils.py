@@ -565,7 +565,10 @@ class MemoryOptimizedReplayBuffer(object):
             convert_listofrollouts(paths)
 
         # add data
-        self.obs = observations.reshape(observations.shape[0], 1)
+        if len(observations.shape) == 1:
+            self.obs = observations.reshape(observations.shape[0], 1)
+        else:
+            self.obs = observations
         self.action = actions
         self.reward = concatenated_rews
         self.done = terminals
