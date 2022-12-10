@@ -120,7 +120,7 @@ def get_env_kwargs(env_name):
             'target_update_freq': 3000,
             'grad_norm_clipping': 10,
             'lander': False,
-            'num_timesteps': 500000,
+            'num_timesteps': 300000,
             'env_wrappers': empty_wrapper,
             'exploration_schedule': None,
         }
@@ -191,7 +191,7 @@ def mimic_optimizer():
     return OptimizerSpec(
         constructor=optim.Adam,
         optim_kwargs=dict(
-            lr=1e-3,
+            lr=1e-1,
         ),
         learning_rate_schedule=ConstantSchedule(1e-3).value,
     )
