@@ -126,7 +126,7 @@ def get_env_kwargs(env_name):
 
         # TODO
         if 'MultiReward' in env_name:
-            kwargs['gamma'] = 0.98
+            kwargs['gamma'] = 1
 
     elif env_name.startswith('MIMIC'):
         kwargs = {

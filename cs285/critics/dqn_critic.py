@@ -188,9 +188,9 @@ class MDQNCritic(BaseCritic):
 
         # Pruning
         self.eps = hparams['pruning_eps']
-        self.optimistic = hparams['optimistic_mdqn']
-        self.uniform_consistent = hparams['uniform_consistent_mdqn']
-        self.consistent = hparams['consistent_mdqn']
+        self.optimistic = hparams.get('optimistic_mdqn', False)
+        self.uniform_consistent = hparams.get('uniform_consistent_mdqn', False)
+        self.consistent = hparams.get('consistent_mdqn', False)
         if np.sum([self.optimistic, self.consistent, self.uniform_consistent]) > 1:
             raise Exception('MDQN type is inconsistently defined!')
         self.alpha = hparams['consistency_alpha']
