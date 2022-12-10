@@ -12,3 +12,11 @@ ipdb==0.13.9
 swig==4.0.2
 box2d-py==2.3.8
 pyglet==1.5.26
+numpy~=1.23.2
+Box2D~=2.3.10
+gensim~=4.2.0
+tensorflow~=2.10.0
+pandas~=1.5.1
+scipy~=1.9.1
+scikit-learn~=1.2.0
+tqdm~=4.64.1
