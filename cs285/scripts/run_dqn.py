@@ -36,8 +36,10 @@ def main():
     parser.add_argument('--double_q', action='store_true')
 
     # Pruning
-    parser.add_argument('--pruning_file_prefix', type=str, default=None)
-    parser.add_argument('--pruning_eps', type=float, default=0., help='Look at ParetoOptimalPolicy.')
+    parser.add_argument('--pruning_eps', type=float, default=0., help='Look at pareto_opt_policy.')
+
+    parser.add_argument('--pruning_file_prefix', type=str, default=None, help='For PrunedDQN only.')
+    parser.add_argument('--mdqn', action='store_true')
 
     # System
     parser.add_argument('--seed', type=int, default=1)

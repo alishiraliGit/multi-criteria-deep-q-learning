@@ -134,6 +134,8 @@ class LunarLander(gym.Env):
 
         self.action_space = spaces.Discrete(N_ACT_DIM)
 
+        self.reward_dim = 1
+
         self.curr_step = None
 
         self._reset()

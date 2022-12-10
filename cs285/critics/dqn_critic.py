@@ -169,7 +169,7 @@ class MDQNCritic(BaseCritic):
 
         # Networks
         network_initializer = hparams['q_func']
-        self.mq_net = network_initializer(self.ob_dim, (self.ac_dim, self.re_dim))
+        self.mq_net = network_initializer(self.ob_dim, self.ac_dim, self.re_dim)
 
         # Optimization
         self.optimizer_spec = optimizer_spec
@@ -185,6 +185,9 @@ class MDQNCritic(BaseCritic):
         self.loss = nn.SmoothL1Loss()  # AKA Huber loss
 
         self.mq_net.to(ptu.device)
+
+        # Pruning
+        self.eps = hparams['pruning_eps']
 
     def update(self, ob_no, ac_n, next_ob_no, reward_nr, terminal_n):
         """
@@ -209,12 +212,12 @@ class MDQNCritic(BaseCritic):
 
         # Select the next action
         available_actions_n = [
-            ParetoOptimalPolicy.find_strong_pareto_optimal_actions(vals, eps=0)
+            ParetoOptimalPolicy.find_strong_pareto_optimal_actions(vals, eps=self.eps)
             for vals in ptu.to_numpy(qa_tp1_values_nar)
         ]
 
         ac_tp1_n = np.array([np.random.choice(actions) for actions in available_actions_n])
-        ac_tp1_n = ptu.from_numpy(ac_tp1_n)
+        ac_tp1_n = ptu.from_numpy(ac_tp1_n).to(torch.long)
 
         # Find Q-values for the selected actions
         q_tp1_values_nr = torch.gather(
@@ -241,6 +244,10 @@ class MDQNCritic(BaseCritic):
         return {
             'Training Loss': ptu.to_numpy(loss),
         }
+
+    def update_target_network(self):
+        # TODO: Is double_q applicable to MDQN?
+        pass
 
     def qa_values(self, obs):
         obs = ptu.from_numpy(obs)

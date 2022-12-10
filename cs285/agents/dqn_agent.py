@@ -11,7 +11,10 @@ class DQNAgent(object):
     def __init__(self, env, agent_params):
 
         self.env = env
+
         self.offline = agent_params['offline']
+        self.mdqn = agent_params['mdqn']
+
         self.agent_params = agent_params
 
         # Learning params
@@ -38,12 +41,12 @@ class DQNAgent(object):
             self.critic = PrunedDQNCritic(agent_params, self.optimizer_spec, agent_params['action_pruner'])
             self.actor = PrunedArgMaxPolicy(self.critic, agent_params['action_pruner'])
         else:
-            if self.agent_params['re_dim'] == 1:
+            if self.mdqn:
+                self.critic = MDQNCritic(agent_params, self.optimizer_spec)
+                self.actor = RandomParetoOptimalActionPolicy(self.critic, eps=agent_params['pruning_eps'])
+            else:
                 self.critic = DQNCritic(agent_params, self.optimizer_spec)
                 self.actor = ArgMaxPolicy(self.critic)
-            else:
-                self.critic = MDQNCritic(agent_params, self.optimizer_spec)
-                self.actor = RandomParetoOptimalActionPolicy(self.critic, )
 
         # Replay buffer
         lander = agent_params['env_name'].startswith('LunarLander')
@@ -91,7 +94,10 @@ class DQNAgent(object):
             action = self.actor.get_action(frames)[0]
         
         # Take a step in the environment using the action from the policy
-        self.last_obs, reward, done, _info = self.env.step(action)
+        if self.mdqn:
+            self.last_obs, reward, done, _info = self.env.careless_step(action)
+        else:
+            self.last_obs, reward, done, _info = self.env.step(action)
 
         # Store the result of taking this action into the replay buffer
         self.replay_buffer.store_effect(self.replay_buffer_idx, action, reward, done)

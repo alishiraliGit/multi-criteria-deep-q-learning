@@ -57,6 +57,7 @@ def register_custom_envs():
     register_env('LunarLander-1155', 'lunar_lander_1155')
     register_env('LunarLander-Sparse', 'lunar_lander_0000')
     register_env('LunarLander-Customizable', 'lunar_lander_customizable_rew_weights')
+    register_env('LunarLander-MultiReward', 'lunar_lander_multi_rew')
 
 
 def register_env(env_name, file_name):
@@ -106,6 +107,10 @@ def get_env_kwargs(env_name):
             'ep_len': 200,
         }
         kwargs['exploration_schedule'] = lander_exploration_schedule(kwargs['num_timesteps'])
+
+        # TODO
+        if 'MultiReward' in env_name:
+            kwargs['gamma'] = 0.9
 
     elif env_name.startswith('MIMIC'):
         kwargs = {
@@ -552,10 +557,14 @@ class MemoryOptimizedReplayBuffer(object):
             True if episode was finished after performing that action.
         """
         self.action[idx] = action
+
+        if isinstance(reward, np.ndarray) and self.reward.ndim == 1:
+            self.reward = np.empty([self.size] + list(reward.shape), dtype=np.float32)
+
         self.reward[idx] = reward
         self.done[idx] = done
     
-    def store_offline_data(self,paths):
+    def store_offline_data(self, paths):
 
         # This works since we add offline data only once to the buffer
         self.num_in_buffer = len(paths)

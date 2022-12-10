@@ -101,7 +101,7 @@ class RandomParetoOptimalActionPolicy(object):
 
         available_actions = ParetoOptimalPolicy.find_strong_pareto_optimal_actions(qa_values_ar, self.eps)
 
-        return np.random.choice(available_actions)
+        return np.array([np.random.choice(available_actions).item()])
 
     def get_actions(self, ob_no: np.ndarray):
         if ob_no.ndim < 2:
@@ -113,7 +113,7 @@ class RandomParetoOptimalActionPolicy(object):
             ParetoOptimalPolicy.find_strong_pareto_optimal_actions(vals, self.eps) for vals in qa_values_nar
         ]
 
-        return np.array([np.random.choice(actions) for actions in available_actions_n])
+        return np.concatenate([np.random.choice(actions) for actions in available_actions_n])
 
 
 if __name__ == '__main__':
