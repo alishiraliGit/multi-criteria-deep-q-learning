@@ -93,13 +93,31 @@ to read the results of Pareto optimality evaluation.
 Folder [data](data) has some sample runs with `exp_name=p4`. 
 Do not push your data unless we want them for the final report.
 
-### my own trials
+### MIMIC offline experiments
 
+This implements offline DQN training for the MIMIC data the reward weights each refer to a different reward. The order of the rewards is as follows
+
+'sparse_90d_rew': Reward of 100 if patient survived for 90 days else -100
+'Reward_matrix_paper': Paper codebase creates a Reward matrix, rewards her correspond to application of Reward matrix to transition dataset (do not use this)
+'Reward_SOFA_1_continous': Reward corresponds to negative of one-period change in SOFA score (t to t+1)
+'Reward_SOFA_1_binary': Reward corresponds to -1 if SOFA score increased (t to t+1)
+'Reward_SOFA_2_continous': Reward corresponds to negative of two-period change in SOFA score (t to t+2)
+'Reward_SOFA_2_binary': Reward corresponds to -1 if SOFA score increased (t to t+2)
+'Reward_SOFA_change2_binary': Reward corresponds to -1 if SOFA score increased by at least 2 (t to t+1)
+'Reward_lac_1_continous': Reward corresponds to negative of one-period change in lactate levels (t to t+1)
+'Reward_lac_1_binary': Reward corresponds to -1 if lactate levels increased (t to t+1)
+'Reward_lac_2_continous': Reward corresponds to negative of two-period change in lactate levels (t to t+2)
+'Reward_lac_2_binary': Reward corresponds to -1 if lactate levels increased (t to t+2)
+
+So for instance --env_rew_weights 1 0 0 0 0 0 0 0 0 0 0 creates the sparse reward baseline DQN model.
+
+```shell
  python cs285/scripts/run_dqn.py \
 --exp_name ignore_default \
 --env_name MIMIC \
---env_rew_weights 0 0 1 1 1 1 1 1 1 1 1 \
+--env_rew_weights 1 0 0 0 0 0 0 0 0 0 0 \
 --double_q \
 --seed 1 \
 --offline \
 --no_weights_in_path --buffer_path './Replay_buffer_extraction/Encoded_paths_all_rewards.pkl'
+```
