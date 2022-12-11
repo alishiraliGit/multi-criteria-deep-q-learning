@@ -14,7 +14,7 @@ if __name__ == "__main__":
     if not(os.path.exists(fig_path_)):
         os.makedirs(fig_path_)
 
-    exp_name_ = 'p8_gamma0.9_eval_LunarLander-Customizable'
+    exp_name_ = 'p9_eps0.3_alpha100_eval_LunarLander-Customizable'
     # 'p7_eps0.0-0.0_alpha100_eval_LunarLander-Customizable'
     all_folders_ = glob.glob(os.path.join(data_path_, exp_name_ + '*'))
     if len(all_folders_) > 1:

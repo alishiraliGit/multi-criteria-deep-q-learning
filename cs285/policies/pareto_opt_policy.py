@@ -116,6 +116,38 @@ class RandomParetoOptimalActionPolicy(object):
         return np.concatenate([np.random.choice(actions) for actions in available_actions_n])
 
 
+class UniformRandomParetoOptimalActionPolicy(object):
+
+    def __init__(self, critic):
+        self.critic = critic
+
+    def get_action(self, obs: np.ndarray):
+        if obs.ndim < 2:
+            obs = obs[np.newaxis, :]
+
+        qa_values_ar: np.ndarray = self.critic.qa_values(obs)[0]
+
+        w_r1 = np.random.random((self.critic.re_dim, 1))
+
+        qa_values_a1 = qa_values_ar.dot(w_r1)
+
+        return qa_values_a1.argmax(axis=0)  # axis=0 ensures the returned argmax is size-1 array
+
+    def get_actions(self, ob_no: np.ndarray):
+        if ob_no.ndim < 2:
+            ob_no = ob_no[np.newaxis, :]
+
+        n = ob_no.shape[0]
+
+        qa_values_nar: np.ndarray = self.critic.qa_values(ob_no)
+
+        w_n1r = np.random.random((n, 1, self.critic.re_dim))
+
+        qa_values_na = (qa_values_nar * w_n1r).sum(axis=2)
+
+        return qa_values_na.argmax(axis=1)
+
+
 if __name__ == '__main__':
     # Test find_pareto_optimal_actions
     values_ = np.array([

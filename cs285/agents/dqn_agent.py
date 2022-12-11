@@ -3,7 +3,7 @@ import numpy as np
 from cs285.infrastructure.dqn_utils import MemoryOptimizedReplayBuffer, PiecewiseSchedule
 from cs285.agents.base_agent import BaseAgent
 from cs285.policies.argmax_policy import ArgMaxPolicy, PrunedArgMaxPolicy
-from cs285.policies.pareto_opt_policy import RandomParetoOptimalActionPolicy
+from cs285.policies.pareto_opt_policy import RandomParetoOptimalActionPolicy, UniformRandomParetoOptimalActionPolicy
 from cs285.critics.dqn_critic import DQNCritic, PrunedDQNCritic, MDQNCritic
 
 
@@ -43,7 +43,11 @@ class DQNAgent(object):
         else:
             if self.mdqn:
                 self.critic = MDQNCritic(agent_params, self.optimizer_spec)
-                self.actor = RandomParetoOptimalActionPolicy(self.critic, eps=agent_params['pruning_eps'])
+
+                if agent_params['uniform_consistent_mdqn']:
+                    self.actor = UniformRandomParetoOptimalActionPolicy(self.critic)
+                else:
+                    self.actor = RandomParetoOptimalActionPolicy(self.critic, eps=agent_params['pruning_eps'])
             else:
                 self.critic = DQNCritic(agent_params, self.optimizer_spec)
                 self.actor = ArgMaxPolicy(self.critic)
