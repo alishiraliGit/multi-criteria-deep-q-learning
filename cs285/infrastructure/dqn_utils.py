@@ -54,6 +54,22 @@ def gather_by_actions(qa_values: torch.tensor, ac_n: torch.tensor) -> torch.tens
     return q_values_nr
 
 
+def gather_by_e(qa_values_nre: torch.tensor, ac_n: torch.tensor) -> torch.tensor:
+    if qa_values_nre.ndim == 3:
+        re_dim = qa_values_nre.shape[-2]
+        ac_nr1 = ac_n.unsqueeze(1).unsqueeze(2).expand(-1, re_dim, 1)
+    else:
+        raise NotImplementedError
+
+    q_values_nr = torch.gather(
+        qa_values_nre,
+        2,
+        ac_nr1
+    ).squeeze(2)
+
+    return q_values_nr
+
+
 class Flatten(torch.nn.Module):
     def forward(self, x):
         batch_size = x.shape[0]

@@ -5,7 +5,7 @@ from torch.nn import utils
 from torch import nn
 
 from cs285.infrastructure import pytorch_util as ptu
-from cs285.infrastructure.dqn_utils import get_maximizer_from_available_actions, gather_by_actions
+from cs285.infrastructure.dqn_utils import get_maximizer_from_available_actions, gather_by_actions, gather_by_e
 from cs285.critics.base_critic import BaseCritic
 from cs285.policies.pareto_opt_policy import ParetoOptimalPolicy
 
@@ -397,6 +397,8 @@ class ExtendedMDQNCritic(BaseCritic):
         self.mq_net_target.to(ptu.device)
 
         # Pruning
+        self.consistent = hparams.get('consistent_emdqn', True)
+
         self.alpha = hparams['consistency_alpha']
         self.b = hparams['w_bound']
 
@@ -420,42 +422,75 @@ class ExtendedMDQNCritic(BaseCritic):
         # Select the action for uniform consistent
         n, a, r, e = qa_tp1_values_nare.shape
 
-        # Draw ws
-        w1_n1r1 = torch.rand((n, 1, r, 1))*self.b + 1
-        w2_n1r1 = torch.rand((n, 1, r, 1))*self.b + 1
+        #####################
+        # Consistent
+        #####################
+        if self.consistent:
+            # Draw ws
+            w1_n1r1 = torch.rand((n, 1, r, 1))*self.b + 1
+            w2_n1r1 = torch.rand((n, 1, r, 1))*self.b + 1
 
-        # Find the inner-products
-        prod_1_na, _ = (qa_t_values_nare.detach() * w1_n1r1).sum(dim=2).max(dim=2)
-        prod_2_na, _ = (qa_t_values_nare.detach() * w2_n1r1).sum(dim=2).max(dim=2)
+            # Find the inner-products
+            prod_1_na, _ = (qa_t_values_nare.detach() * w1_n1r1).sum(dim=2).max(dim=2)
+            prod_2_na, _ = (qa_t_values_nare.detach() * w2_n1r1).sum(dim=2).max(dim=2)
 
-        prod_1_n = gather_by_actions(prod_1_na, ac_n)
-        prod_2_n = gather_by_actions(prod_2_na, ac_n)
+            prod_1_n = gather_by_actions(prod_1_na, ac_n)
+            prod_2_n = gather_by_actions(prod_2_na, ac_n)
 
-        # Find the softmax probs
-        prob_1_n = torch.exp(self.alpha * prod_1_n) / torch.exp(self.alpha * prod_1_na).sum(dim=1)
-        prob_2_n = torch.exp(self.alpha * prod_2_n) / torch.exp(self.alpha * prod_2_na).sum(dim=1)
+            # Find the softmax probs
+            prob_1_n = torch.exp(self.alpha * prod_1_n) / torch.exp(self.alpha * prod_1_na).sum(dim=1)
+            prob_2_n = torch.exp(self.alpha * prod_2_n) / torch.exp(self.alpha * prod_2_na).sum(dim=1)
 
-        # Find likelihood ratio
-        likelihood_n = prob_2_n / prob_1_n
+            # Find likelihood ratio
+            likelihood_n = prob_2_n / prob_1_n
 
-        # Select the better w
-        rnd_n = torch.rand(likelihood_n.shape)
-        choice_n = (rnd_n < likelihood_n) * 1
+            # Select the better w
+            rnd_n = torch.rand(likelihood_n.shape)
+            choice_n = (rnd_n < likelihood_n) * 1
 
-        w1_nr = w1_n1r1.squeeze()
-        w2_nr = w2_n1r1.squeeze()
-        ws_n2r = torch.stack([w1_nr, w2_nr], dim=1)
+            w1_nr = w1_n1r1.squeeze()
+            w2_nr = w2_n1r1.squeeze()
+            ws_n2r = torch.stack([w1_nr, w2_nr], dim=1)
 
-        w_nr = gather_by_actions(ws_n2r, choice_n)
+            w_nr = gather_by_actions(ws_n2r, choice_n)
 
-        w_n1r1 = w_nr.unsqueeze(1).unsqueeze(3)
+            w_n1r1 = w_nr.unsqueeze(1).unsqueeze(3)
 
-        # Get the best actions for the selected w
-        qa_tp1_values_na, _ = (qa_tp1_values_nare * w_n1r1).sum(dim=2).max(dim=2)
+            # Get the best actions for the selected w
+            qa_tp1_values_na, _ = (qa_tp1_values_nare * w_n1r1).sum(dim=2).max(dim=2)
 
-        ac_tp1_n = qa_tp1_values_na.argmax(dim=1)
+            ac_tp1_n = qa_tp1_values_na.argmax(dim=1)
 
-        q_tp1_values_nre = gather_by_actions(qa_tp1_values_nare, ac_tp1_n)
+            q_tp1_values_nre = gather_by_actions(qa_tp1_values_nare, ac_tp1_n)
+
+        #####################
+        # Inconsistent
+        #####################
+        else:
+            # Draw ws
+            q_tp1_values_list = []
+            for idx_e in range(e):
+                w_n1r1 = torch.rand((n, 1, r, 1)) * self.b + 1
+
+                # Get the best actions for w
+                qa_w_tp1_values_na, _ = (qa_tp1_values_nare * w_n1r1).sum(dim=2).max(dim=2)
+
+                ac_tp1_n = qa_w_tp1_values_na.argmax(dim=1)
+
+                q_w_tp1_values_nre = gather_by_actions(qa_tp1_values_nare, ac_tp1_n)
+
+                # Get the best ex dim for the best action
+                w_nr1 = w_n1r1.squeeze(1)
+
+                e_tp1_n = (q_w_tp1_values_nre * w_nr1).sum(dim=1).argmax(dim=1)
+
+                q_w_tp1_values_nr = gather_by_e(q_w_tp1_values_nre, e_tp1_n)
+
+                # Add to tle list
+                q_tp1_values_list.append(q_w_tp1_values_nr)
+
+            # Stack
+            q_tp1_values_nre = torch.stack(q_tp1_values_list, dim=2)
 
         # Compute targets for minimizing Bellman error
         # currentReward + self.gamma * qValuesOfNextTimestep * (not terminal)
