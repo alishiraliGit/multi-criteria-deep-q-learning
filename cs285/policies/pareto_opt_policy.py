@@ -127,7 +127,7 @@ class UniformRandomParetoOptimalActionPolicy(object):
 
         qa_values_ar: np.ndarray = self.critic.qa_values(obs)[0]
 
-        w_r1 = np.random.random((self.critic.re_dim, 1))
+        w_r1 = np.random.random((self.critic.re_dim, 1))*0.5 + 1
 
         qa_values_a1 = qa_values_ar.dot(w_r1)
 
@@ -141,7 +141,7 @@ class UniformRandomParetoOptimalActionPolicy(object):
 
         qa_values_nar: np.ndarray = self.critic.qa_values(ob_no)
 
-        w_n1r = np.random.random((n, 1, self.critic.re_dim))
+        w_n1r = np.random.random((n, 1, self.critic.re_dim))*0.5 + 1
 
         qa_values_na = (qa_values_nar * w_n1r).sum(axis=2)
 

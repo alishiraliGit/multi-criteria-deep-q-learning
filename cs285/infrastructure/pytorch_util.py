@@ -67,6 +67,16 @@ class MultiDimLinear(torch.nn.Linear):
         return out.reshape((len(x), *self.out_shape))
 
 
+class FakeMultiDimLinear(torch.nn.Linear):
+    def __init__(self, in_features, out_shape, **kwargs):
+        self.out_shape = out_shape
+        super().__init__(in_features, out_shape[0], **kwargs)
+
+    def forward(self, x):
+        out = super().forward(x)
+        return out.unsqueeze(2).expand((len(x), *self.out_shape))
+
+
 device = None
 
 

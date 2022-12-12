@@ -170,6 +170,7 @@ class MDQNCritic(BaseCritic):
         # Networks
         network_initializer = hparams['q_func']
         self.mq_net = network_initializer(self.ob_dim, self.ac_dim, self.re_dim)
+        self.mq_net_target = network_initializer(self.ob_dim, self.ac_dim, self.re_dim)
 
         # Optimization
         self.optimizer_spec = optimizer_spec
@@ -185,6 +186,7 @@ class MDQNCritic(BaseCritic):
         self.loss = nn.SmoothL1Loss()  # AKA Huber loss
 
         self.mq_net.to(ptu.device)
+        self.mq_net_target.to(ptu.device)
 
         # Pruning
         self.eps = hparams['pruning_eps']
@@ -210,7 +212,7 @@ class MDQNCritic(BaseCritic):
         q_t_values_nr = gather_by_actions(qa_t_values_nar, ac_n)
 
         # Compute the Q-values for the next observation
-        qa_tp1_values_nar = self.mq_net(next_ob_no).detach()
+        qa_tp1_values_nar = self.mq_net_target(next_ob_no).detach()
 
         # Find next actions and Q-values based on MDQN type
 
@@ -226,8 +228,8 @@ class MDQNCritic(BaseCritic):
         # Select the action for uniform consistent
         elif self.uniform_consistent:
             # Draw ws
-            w1_nr = torch.rand(q_t_values_nr.shape)
-            w2_nr = torch.rand(q_t_values_nr.shape)
+            w1_nr = torch.rand(q_t_values_nr.shape)*0.5 + 1
+            w2_nr = torch.rand(q_t_values_nr.shape)*0.5 + 1
 
             # Find the inner-products
             prod_1_n = (q_t_values_nr.detach() * w1_nr).sum(dim=1)
@@ -314,8 +316,10 @@ class MDQNCritic(BaseCritic):
         }
 
     def update_target_network(self):
-        # TODO: Is double_q applicable to MDQN?
-        pass
+        for target_param, param in zip(
+                self.mq_net_target.parameters(), self.mq_net.parameters()
+        ):
+            target_param.data.copy_(param.data)
 
     def qa_values(self, obs):
         obs = ptu.from_numpy(obs)
