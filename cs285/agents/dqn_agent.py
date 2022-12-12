@@ -3,8 +3,9 @@ import numpy as np
 from cs285.infrastructure.dqn_utils import MemoryOptimizedReplayBuffer, PiecewiseSchedule
 from cs285.agents.base_agent import BaseAgent
 from cs285.policies.argmax_policy import ArgMaxPolicy, PrunedArgMaxPolicy
-from cs285.policies.pareto_opt_policy import RandomParetoOptimalActionPolicy, UniformRandomParetoOptimalActionPolicy
-from cs285.critics.dqn_critic import DQNCritic, PrunedDQNCritic, MDQNCritic
+from cs285.policies.pareto_opt_policy import RandomParetoOptimalActionPolicy, UniformRandomParetoOptimalActionPolicy,\
+    ExtendedUniformRandomParetoOptimalActionPolicy
+from cs285.critics.dqn_critic import DQNCritic, PrunedDQNCritic, MDQNCritic, ExtendedMDQNCritic
 
 
 class DQNAgent(object):
@@ -14,6 +15,7 @@ class DQNAgent(object):
 
         self.offline = agent_params['offline']
         self.mdqn = agent_params['mdqn']
+        self.emdqn = agent_params['emdqn']
 
         self.agent_params = agent_params
 
@@ -45,9 +47,14 @@ class DQNAgent(object):
                 self.critic = MDQNCritic(agent_params, self.optimizer_spec)
 
                 if agent_params['uniform_consistent_mdqn']:
-                    self.actor = UniformRandomParetoOptimalActionPolicy(self.critic)
+                    self.actor = UniformRandomParetoOptimalActionPolicy(self.critic, b=agent_params['w_bound'])
                 else:
                     self.actor = RandomParetoOptimalActionPolicy(self.critic, eps=agent_params['pruning_eps'])
+
+            elif self.emdqn:
+                self.critic = ExtendedMDQNCritic(agent_params, self.optimizer_spec)
+                self.actor = ExtendedUniformRandomParetoOptimalActionPolicy(self.critic, b=agent_params['w_bound'])
+
             else:
                 self.critic = DQNCritic(agent_params, self.optimizer_spec)
                 self.actor = ArgMaxPolicy(self.critic)
@@ -98,7 +105,7 @@ class DQNAgent(object):
             action = self.actor.get_action(frames)[0]
         
         # Take a step in the environment using the action from the policy
-        if self.mdqn:
+        if self.mdqn or self.emdqn:
             self.last_obs, reward, done, _info = self.env.careless_step(action)
         else:
             self.last_obs, reward, done, _info = self.env.step(action)

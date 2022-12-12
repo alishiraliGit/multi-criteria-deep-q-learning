@@ -1,9 +1,9 @@
 import warnings
 
 from cs285.agents.base_agent import BaseAgent
-from cs285.policies.pareto_opt_policy import ParetoOptimalPolicy
+from cs285.policies.pareto_opt_policy import ParetoOptimalPolicy, ExtendedParetoOptimalPolicy
 from cs285.critics.pareto_opt_dqn_critic import ParetoOptDQNCritic
-from cs285.critics.dqn_critic import MDQNCritic
+from cs285.critics.dqn_critic import MDQNCritic, ExtendedMDQNCritic
 
 
 class LoadedParetoOptDQNAgent(BaseAgent):
@@ -35,6 +35,26 @@ class LoadedParetoOptMDQNAgent(BaseAgent):
             warnings.warn('Pruning eps of the trained MDQN (eps=%.2f) is different from what is provided (eps=%.2f)' %
                           (self.critic.eps, pruning_eps))
         self.actor = ParetoOptimalPolicy(self.critic, eps=pruning_eps)
+
+    def train(self) -> dict:
+        pass
+
+    def add_to_replay_buffer(self, paths):
+        pass
+
+    def sample(self, batch_size):
+        pass
+
+    def save(self, path):
+        pass
+
+
+class LoadedParetoOptExtendedMDQNAgent(BaseAgent):
+    def __init__(self, file_path, pruning_eps, **kwargs):
+        super().__init__(**kwargs)
+
+        self.critic = ExtendedMDQNCritic.load(file_path)
+        self.actor = ExtendedParetoOptimalPolicy(self.critic, eps=pruning_eps)
 
     def train(self) -> dict:
         pass

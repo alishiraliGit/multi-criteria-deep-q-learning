@@ -86,6 +86,33 @@ class ParetoOptimalPolicy(object):
         return [self.find_strong_pareto_optimal_actions(vals, self.eps) for vals in qa_values_nac]
 
 
+class ExtendedParetoOptimalPolicy(ParetoOptimalPolicy):
+
+    def __init__(self, critic, eps=0):
+        super().__init__(critic, eps)
+
+    def get_action(self, obs: np.ndarray):
+        if obs.ndim < 2:
+            obs = obs[np.newaxis, :]
+
+        qa_values_are = self.critic.qa_values(obs)[0]
+
+        # TODO: Only matches the theory with b -> inf I think
+        qa_values_ar = qa_values_are.max(axis=2)
+
+        return self.find_strong_pareto_optimal_actions(qa_values_ar, self.eps)
+
+    def get_actions(self, ob_no: np.ndarray):
+        if ob_no.ndim < 2:
+            ob_no = ob_no[np.newaxis, :]
+
+        qa_values_nare = self.critic.qa_values(ob_no)
+
+        qa_values_nar = qa_values_nare.max(axis=3)
+
+        return [self.find_strong_pareto_optimal_actions(vals, self.eps) for vals in qa_values_nar]
+
+
 class RandomParetoOptimalActionPolicy(object):
 
     def __init__(self, critic, eps=0):
@@ -118,8 +145,10 @@ class RandomParetoOptimalActionPolicy(object):
 
 class UniformRandomParetoOptimalActionPolicy(object):
 
-    def __init__(self, critic):
+    def __init__(self, critic, b):
         self.critic = critic
+
+        self.b = b
 
     def get_action(self, obs: np.ndarray):
         if obs.ndim < 2:
@@ -127,7 +156,7 @@ class UniformRandomParetoOptimalActionPolicy(object):
 
         qa_values_ar: np.ndarray = self.critic.qa_values(obs)[0]
 
-        w_r1 = np.random.random((self.critic.re_dim, 1))*0.5 + 1
+        w_r1 = np.random.random((self.critic.re_dim, 1))*self.b + 1
 
         qa_values_a1 = qa_values_ar.dot(w_r1)
 
@@ -141,9 +170,43 @@ class UniformRandomParetoOptimalActionPolicy(object):
 
         qa_values_nar: np.ndarray = self.critic.qa_values(ob_no)
 
-        w_n1r = np.random.random((n, 1, self.critic.re_dim))*0.5 + 1
+        w_n1r = np.random.random((n, 1, self.critic.re_dim))*self.b + 1
 
         qa_values_na = (qa_values_nar * w_n1r).sum(axis=2)
+
+        return qa_values_na.argmax(axis=1)
+
+
+class ExtendedUniformRandomParetoOptimalActionPolicy(object):
+
+    def __init__(self, critic, b):
+        self.critic = critic
+
+        self.b = b
+
+    def get_action(self, obs: np.ndarray):
+        if obs.ndim < 2:
+            obs = obs[np.newaxis, :]
+
+        qa_values_are: np.ndarray = self.critic.qa_values(obs)[0]
+
+        w_1r1 = np.random.random((1, self.critic.re_dim, 1))*self.b + 1
+
+        qa_values_a1 = (qa_values_are * w_1r1).sum(axis=1).max(axis=1)[:, np.newaxis]
+
+        return qa_values_a1.argmax(axis=0)  # axis=0 ensures the returned argmax is size-1 array
+
+    def get_actions(self, ob_no: np.ndarray):
+        if ob_no.ndim < 2:
+            ob_no = ob_no[np.newaxis, :]
+
+        n = ob_no.shape[0]
+
+        qa_values_nare: np.ndarray = self.critic.qa_values(ob_no)
+
+        w_n1r1 = np.random.random((n, 1, self.critic.re_dim, 1))*self.b + 1
+
+        qa_values_na = (qa_values_nare * w_n1r1).sum(axis=2).max(axis=2)
 
         return qa_values_na.argmax(axis=1)
 

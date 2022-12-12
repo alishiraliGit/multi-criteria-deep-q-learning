@@ -35,15 +35,18 @@ def get_maximizer_from_available_actions_np(values_na: np.ndarray, acs_list_n) -
     return np.array([acs_list_n[idx][vals[acs_list_n[idx]].argmax()] for idx, vals in enumerate(values_na)])
 
 
-def gather_by_actions(qa_values_nar: torch.tensor, ac_n: torch.tensor) -> torch.tensor:
-    if qa_values_nar.ndim == 3:
-        re_dim = qa_values_nar.shape[-1]
+def gather_by_actions(qa_values: torch.tensor, ac_n: torch.tensor) -> torch.tensor:
+    if qa_values.ndim == 4:
+        re_dim, ex_dim = qa_values.shape[-2:]
+        ac_n = ac_n.unsqueeze(1).unsqueeze(2).unsqueeze(3).expand(-1, 1, re_dim, ex_dim)
+    elif qa_values.ndim == 3:
+        re_dim = qa_values.shape[-1]
         ac_n = ac_n.unsqueeze(1).unsqueeze(2).expand(-1, 1, re_dim)
-    elif qa_values_nar.ndim == 2:
+    elif qa_values.ndim == 2:
         ac_n = ac_n.unsqueeze(1)
 
     q_values_nr = torch.gather(
-        qa_values_nar,
+        qa_values,
         1,
         ac_n
     ).squeeze(1)
@@ -159,11 +162,14 @@ def empty_wrapper(env):
 # Lander functions
 ###################
 
-def create_lander_q_network(ob_dim, num_actions, num_rewards=1):
-    if num_rewards == 1:
-        output_layer = nn.Linear(64, num_actions)
+def create_lander_q_network(ob_dim, num_actions, num_rewards=1, ex_dim=1):
+    if ex_dim > 1:
+        output_layer = ptu.MultiDimLinear(64, (num_actions, num_rewards, ex_dim))
     else:
-        output_layer = ptu.MultiDimLinear(64, (num_actions, num_rewards))
+        if num_rewards == 1:
+            output_layer = nn.Linear(64, num_actions)
+        else:
+            output_layer = ptu.MultiDimLinear(64, (num_actions, num_rewards))
 
     return nn.Sequential(
         nn.Linear(ob_dim, 64),

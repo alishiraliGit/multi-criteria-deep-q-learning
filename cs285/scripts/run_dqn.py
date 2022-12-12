@@ -45,7 +45,13 @@ def main():
     parser.add_argument('--optimistic_mdqn', action='store_true')
     parser.add_argument('--consistent_mdqn', action='store_true')
     parser.add_argument('--uniform_consistent_mdqn', action='store_true')
+
+    # EMDQN
+    parser.add_argument('--emdqn', action='store_true')
+    parser.add_argument('--ex_dim', type=int, default=1)
+
     parser.add_argument('--consistency_alpha', type=float, default=1, help='Look at MDQN in critics.')
+    parser.add_argument('--w_bound', type=float, default=0.5)
 
     # System
     parser.add_argument('--seed', type=int, default=1)

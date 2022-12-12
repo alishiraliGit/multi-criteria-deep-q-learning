@@ -8,7 +8,8 @@ sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 
 
 from cs285.infrastructure.rl_evaluator import RLEvaluator
 from cs285.agents.dqn_agent import LoadedDQNAgent
-from cs285.agents.pareto_opt_agent import LoadedParetoOptDQNAgent, LoadedParetoOptMDQNAgent
+from cs285.agents.pareto_opt_agent import LoadedParetoOptDQNAgent, LoadedParetoOptMDQNAgent, \
+    LoadedParetoOptExtendedMDQNAgent
 from cs285.infrastructure.dqn_utils import get_env_kwargs
 
 
@@ -35,11 +36,11 @@ def main():
     # Pruning
     parser.add_argument('--pruning_eps', type=float, default=0., help='Look at pareto_opt_policy.')
 
+    # MDQN
     parser.add_argument('--mdqn', action='store_true')
-    parser.add_argument('--optimistic_mdqn', action='store_true')
-    parser.add_argument('--consistent_mdqn', action='store_true')
-    parser.add_argument('--uniform_consistent_mdqn', action='store_true')
-    parser.add_argument('--consistency_alpha', type=float, default=1, help='Look at MDQN in critics.')
+
+    # EMDQN
+    parser.add_argument('--emdqn', action='store_true')
 
     # System
     parser.add_argument('--seed', type=int, default=1)
@@ -54,10 +55,8 @@ def main():
     # Decision booleans
     customize_rew = False if params['env_rew_weights'] is None else True
 
-    if params['optimistic_mdqn'] or params['consistent_mdqn'] or params['uniform_consistent_mdqn']:
-        params['mdqn'] = True
-
     mdqn = params['mdqn']
+    emdqn = params['emdqn']
 
     ##################################
     # Create directory for logging
@@ -94,11 +93,17 @@ def main():
     ##################################
     # Load saved models
     ##################################
-    if mdqn:
+    if mdqn or emdqn:
         pruning_folder_paths = glob.glob(os.path.join(data_path, params['pruning_file_prefix'] + '*'))
         assert len(pruning_folder_paths) == 1
         pruning_file_path = os.path.join(pruning_folder_paths[0], 'dqn_agent.pt')
-        pruning_agent = LoadedParetoOptMDQNAgent(file_path=pruning_file_path, pruning_eps=params['pruning_eps'])
+        if mdqn:
+            pruning_agent = LoadedParetoOptMDQNAgent(file_path=pruning_file_path,
+                                                     pruning_eps=params['pruning_eps'])
+        else:
+            pruning_agent = LoadedParetoOptExtendedMDQNAgent(file_path=pruning_file_path,
+                                                             pruning_eps=params['pruning_eps'])
+
     else:
         pruning_folder_paths = glob.glob(os.path.join(data_path, params['pruning_file_prefix'] + '*'))
         pruning_file_paths = [os.path.join(f, 'dqn_agent.pt') for f in pruning_folder_paths]
