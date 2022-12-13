@@ -96,7 +96,9 @@ if __name__ == "__main__":
     pareto_action_sets = [x for _, x in sorted(zip(eps_list, pareto_action_sets), key=lambda pair: pair[0])]
     
     """
-    exp_name_ = 'pDQN_30_eval_MIMIC_11-12-2022_20-06-30'
+    exp_name_ = 'p9_eps0.3_alpha100_eval_LunarLander-Customizable'
+    # 'p7_eps0.0-0.0_alpha100_eval_LunarLander-Customizable'
+
     all_folders_ = glob.glob(os.path.join(data_path_, exp_name_ + '*'))
     if len(all_folders_) > 1:
         raise Exception('More than one folder with this exp_name prefix found!')

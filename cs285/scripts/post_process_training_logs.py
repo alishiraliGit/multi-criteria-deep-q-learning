@@ -72,6 +72,7 @@ if __name__ == '__main__':
     prefix_ = params['prefix']
     
     folder_paths_ = glob.glob(os.path.join(load_path_, params['prefix'] + '*'))
+
     file_paths_ = [glob.glob(os.path.join(f, 'events*'))[0] for f in folder_paths_]
 
     #Adding result of baseline sparse DQN if needed
@@ -87,8 +88,9 @@ if __name__ == '__main__':
     print(get_section_tags(file_paths_[0]))
 
     # Extract data
+
     #x_tag_ = 'Train_EnvstepsSoFar'
-    #y_tag_ = 'Train_AverageReturn'
+    #y_tag_ = 'Train_AverageReturn' #'Training_Loss'
 
     x_tag_ = params['x_tag'] 
     y_tag_ = params['y_tag']

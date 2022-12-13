@@ -8,7 +8,7 @@ sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 
 
 from cs285.infrastructure.rl_trainer import RLTrainer
 from cs285.agents.dqn_agent import DQNAgent
-from cs285.agents.pareto_opt_agent import LoadedParetoOptDQNAgent
+from cs285.agents.pareto_opt_agent import LoadedParetoOptDQNAgent, LoadedParetoOptMDQNAgent
 from cs285.infrastructure.dqn_utils import get_env_kwargs
 from cs285.infrastructure import pytorch_util as ptu
 
@@ -37,8 +37,16 @@ def main():
     parser.add_argument('--double_q', action='store_true')
 
     # Pruning
-    parser.add_argument('--pruning_file_prefix', type=str, default=None)
-    parser.add_argument('--pruning_eps', type=float, default=0., help='Look at ParetoOptimalPolicy.')
+    parser.add_argument('--pruning_file_prefix', type=str, default=None, help='For PrunedDQN only.')
+    parser.add_argument('--prune_with_mdqn', action='store_true')
+    parser.add_argument('--pruning_eps', type=float, default=0., help='Look at pareto_opt_policy.')
+
+    # MDQN
+    parser.add_argument('--mdqn', action='store_true')
+    parser.add_argument('--optimistic_mdqn', action='store_true')
+    parser.add_argument('--consistent_mdqn', action='store_true')
+    parser.add_argument('--uniform_consistent_mdqn', action='store_true')
+    parser.add_argument('--consistency_alpha', type=float, default=1, help='Look at MDQN in critics.')
 
     # System
     parser.add_argument('--seed', type=int, default=1)
@@ -70,6 +78,11 @@ def main():
 
     if params['offline'] and params['buffer_path'] is None:
         raise Exception('Please provide a buffer_path to enable offline learning')
+
+    if params['optimistic_mdqn'] or params['consistent_mdqn'] or params['uniform_consistent_mdqn']:
+        params['mdqn'] = True
+
+    prune_with_mdqn = params['prune_with_mdqn']
 
     ##################################
     # Create directory for logging
@@ -118,8 +131,15 @@ def main():
     
     if prune:
         pruning_folder_paths = glob.glob(os.path.join(data_path, params['pruning_file_prefix'] + '*'))
-        pruning_file_paths = [os.path.join(f, 'dqn_agent.pt') for f in pruning_folder_paths]
-        pruning_agent = LoadedParetoOptDQNAgent(file_paths=pruning_file_paths, pruning_eps=params['pruning_eps'])
+
+        if prune_with_mdqn:
+            assert len(pruning_folder_paths) == 1
+            pruning_file_path = os.path.join(pruning_folder_paths[0], 'dqn_agent.pt')
+            pruning_agent = LoadedParetoOptMDQNAgent(file_path=pruning_file_path, pruning_eps=params['pruning_eps'])
+        else:
+            pruning_file_paths = [os.path.join(f, 'dqn_agent.pt') for f in pruning_folder_paths]
+            pruning_agent = LoadedParetoOptDQNAgent(file_paths=pruning_file_paths, pruning_eps=params['pruning_eps'])
+
         params['action_pruner'] = pruning_agent.actor
 
     ##################################

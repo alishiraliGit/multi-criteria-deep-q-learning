@@ -5,7 +5,7 @@ from torch.nn import utils
 from torch import nn
 
 from cs285.infrastructure import pytorch_util as ptu
-from cs285.infrastructure.dqn_utils import get_maximizer_from_available_actions
+from cs285.infrastructure.dqn_utils import get_maximizer_from_available_actions, gather_by_actions
 from cs285.critics.base_critic import BaseCritic
 from cs285.policies.pareto_opt_policy import ParetoOptimalPolicy
 
@@ -172,7 +172,7 @@ class MDQNCritic(BaseCritic):
 
         # Networks
         network_initializer = hparams['q_func']
-        self.mq_net = network_initializer(self.ob_dim, (self.ac_dim, self.re_dim))
+        self.mq_net = network_initializer(self.ob_dim, self.ac_dim, self.re_dim)
 
         # Optimization
         self.optimizer_spec = optimizer_spec
@@ -189,6 +189,15 @@ class MDQNCritic(BaseCritic):
 
         self.mq_net.to(ptu.device)
 
+        # Pruning
+        self.eps = hparams['pruning_eps']
+        self.optimistic = hparams.get('optimistic_mdqn', False)
+        self.uniform_consistent = hparams.get('uniform_consistent_mdqn', False)
+        self.consistent = hparams.get('consistent_mdqn', False)
+        if np.sum([self.optimistic, self.consistent, self.uniform_consistent]) > 1:
+            raise Exception('MDQN type is inconsistently defined!')
+        self.alpha = hparams['consistency_alpha']
+
     def update(self, ob_no, ac_n, next_ob_no, reward_nr, terminal_n):
         """
             Update the parameters of the critic.
@@ -201,30 +210,92 @@ class MDQNCritic(BaseCritic):
 
         # Get the current Q-values
         qa_t_values_nar = self.mq_net(ob_no)
-        q_t_values_nr = torch.gather(
-            qa_t_values_nar,
-            1,
-            ac_n.unsqueeze(1).unsqueeze(2).expand(-1, 1, self.re_dim)
-        ).squeeze(1)
+        q_t_values_nr = gather_by_actions(qa_t_values_nar, ac_n)
 
         # Compute the Q-values for the next observation
         qa_tp1_values_nar = self.mq_net(next_ob_no).detach()
 
-        # Select the next action
-        available_actions_n = [
-            ParetoOptimalPolicy.find_strong_pareto_optimal_actions(vals, eps=0)
-            for vals in ptu.to_numpy(qa_tp1_values_nar)
-        ]
+        # Find next actions and Q-values based on MDQN type
 
-        ac_tp1_n = np.array([np.random.choice(actions) for actions in available_actions_n])
-        ac_tp1_n = ptu.from_numpy(ac_tp1_n)
+        #####################
+        # Optimistic
+        #####################
+        if self.optimistic:
+            q_tp1_values_nr, _ = qa_tp1_values_nar.max(dim=1)
 
-        # Find Q-values for the selected actions
-        q_tp1_values_nr = torch.gather(
-            qa_tp1_values_nar,
-            1,
-            ac_tp1_n.unsqueeze(1).unsqueeze(2).expand(-1, 1, self.re_dim)
-        ).squeeze(1)
+        #####################
+        # Uniform consistent
+        #####################
+        # Select the action for uniform consistent
+        elif self.uniform_consistent:
+            # Draw ws
+            w1_nr = torch.rand(q_t_values_nr.shape)
+            w2_nr = torch.rand(q_t_values_nr.shape)
+
+            # Find the inner-products
+            prod_1_n = (q_t_values_nr.detach() * w1_nr).sum(dim=1)
+            prod_2_n = (q_t_values_nr.detach() * w2_nr).sum(dim=1)
+
+            # Find likelihood ratio
+            likelihood_n = torch.exp(self.alpha * prod_2_n) / torch.exp(self.alpha * prod_1_n)
+
+            # Select the better w
+            rnd_n = torch.rand(likelihood_n.shape)
+            choice_n = (rnd_n < likelihood_n) * 1
+
+            ws_n2r = torch.stack([w1_nr, w2_nr], dim=1)
+
+            w_nr = gather_by_actions(ws_n2r, choice_n)
+
+            # Get the best actions for the selected w
+            qa_tp1_values_na = (qa_tp1_values_nar * w_nr.unsqueeze(1).expand(qa_tp1_values_nar.shape)).sum(dim=2)
+
+            ac_tp1_n = qa_tp1_values_na.argmax(dim=1)
+
+            q_tp1_values_nr = gather_by_actions(qa_tp1_values_nar, ac_tp1_n)
+
+        else:
+            #####################
+            # MDQN default
+            #####################
+            # Select the next action
+            available_actions_n = [
+                ParetoOptimalPolicy.find_strong_pareto_optimal_actions(vals, eps=self.eps)
+                for vals in ptu.to_numpy(qa_tp1_values_nar)
+            ]
+
+            ac_tp1_n = np.array([np.random.choice(actions) for actions in available_actions_n])
+            ac_tp1_n = ptu.from_numpy(ac_tp1_n).to(torch.long)
+
+            # Find Q-values for the selected actions
+            q_tp1_values_nr = gather_by_actions(qa_tp1_values_nar, ac_tp1_n)
+
+            #####################
+            # Consistent
+            #####################
+            if self.consistent:
+                # Draw a new action (prime) and find its Q-values
+                acp_tp1_n = np.array([np.random.choice(actions) for actions in available_actions_n])
+                acp_tp1_n = ptu.from_numpy(acp_tp1_n).to(torch.long)
+                qp_tp1_values_nr = gather_by_actions(qa_tp1_values_nar, acp_tp1_n)
+
+                # Find inner-products of Q_a and Q_a'
+                prod_t_tp1_n = (q_t_values_nr.detach() * q_tp1_values_nr).sum(dim=1)
+                prodp_t_tp1_n = (q_t_values_nr.detach() * qp_tp1_values_nr).sum(dim=1)
+
+                # Find likelihood ratio
+                likelihood_n = torch.exp(self.alpha*prodp_t_tp1_n)/torch.exp((self.alpha*prod_t_tp1_n))
+
+                # Select the better action
+                rnd_n = torch.rand(likelihood_n.shape)
+                choice_n = (rnd_n < likelihood_n)*1
+
+                acs_tp1_n2 = torch.stack([ac_tp1_n, acp_tp1_n], dim=1)
+
+                ac_tp1_n = gather_by_actions(acs_tp1_n2, choice_n)
+
+                # Find Q-values for the selected actions
+                q_tp1_values_nr = gather_by_actions(qa_tp1_values_nar, ac_tp1_n)
 
         # Compute targets for minimizing Bellman error
         # currentReward + self.gamma * qValuesOfNextTimestep * (not terminal)
@@ -244,6 +315,10 @@ class MDQNCritic(BaseCritic):
         return {
             'Training Loss': ptu.to_numpy(loss),
         }
+
+    def update_target_network(self):
+        # TODO: Is double_q applicable to MDQN?
+        pass
 
     def qa_values(self, obs):
         obs = ptu.from_numpy(obs)

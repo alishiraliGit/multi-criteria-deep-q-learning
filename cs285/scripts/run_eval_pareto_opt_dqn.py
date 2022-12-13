@@ -8,7 +8,7 @@ sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 
 
 from cs285.infrastructure.rl_evaluator import RLEvaluator
 from cs285.agents.dqn_agent import LoadedDQNAgent
-from cs285.agents.pareto_opt_agent import LoadedParetoOptDQNAgent
+from cs285.agents.pareto_opt_agent import LoadedParetoOptDQNAgent, LoadedParetoOptMDQNAgent
 from cs285.infrastructure.dqn_utils import get_env_kwargs
 from cs285.infrastructure import pytorch_util as ptu
 
@@ -34,7 +34,13 @@ def main():
     parser.add_argument('--opt_file_prefix', type=str) #This is only required for the gym-based evaluation
 
     # Pruning
-    parser.add_argument('--pruning_eps', type=float, default=0., help='Look at ParetoOptimalPolicy.')
+    parser.add_argument('--pruning_eps', type=float, default=0., help='Look at pareto_opt_policy.')
+
+    parser.add_argument('--mdqn', action='store_true')
+    parser.add_argument('--optimistic_mdqn', action='store_true')
+    parser.add_argument('--consistent_mdqn', action='store_true')
+    parser.add_argument('--uniform_consistent_mdqn', action='store_true')
+    parser.add_argument('--consistency_alpha', type=float, default=1, help='Look at MDQN in critics.')
 
     # System
     parser.add_argument('--seed', type=int, default=1)
@@ -55,6 +61,11 @@ def main():
 
     # Decision booleans
     customize_rew = False if params['env_rew_weights'] is None else True
+
+    if params['optimistic_mdqn'] or params['consistent_mdqn'] or params['uniform_consistent_mdqn']:
+        params['mdqn'] = True
+
+    mdqn = params['mdqn']
 
     ##################################
     # Create directory for logging
@@ -102,9 +113,15 @@ def main():
             gpu_id=params['which_gpu']
         )
 
-    pruning_folder_paths = glob.glob(os.path.join(data_path, params['pruning_file_prefix'] + '*'))
-    pruning_file_paths = [os.path.join(f, 'dqn_agent.pt') for f in pruning_folder_paths]
-    pruning_agent = LoadedParetoOptDQNAgent(file_paths=pruning_file_paths, pruning_eps=params['pruning_eps'])
+    if mdqn:
+        pruning_folder_paths = glob.glob(os.path.join(data_path, params['pruning_file_prefix'] + '*'))
+        assert len(pruning_folder_paths) == 1
+        pruning_file_path = os.path.join(pruning_folder_paths[0], 'dqn_agent.pt')
+        pruning_agent = LoadedParetoOptMDQNAgent(file_path=pruning_file_path, pruning_eps=params['pruning_eps'])
+    else:
+        pruning_folder_paths = glob.glob(os.path.join(data_path, params['pruning_file_prefix'] + '*'))
+        pruning_file_paths = [os.path.join(f, 'dqn_agent.pt') for f in pruning_folder_paths]
+        pruning_agent = LoadedParetoOptDQNAgent(file_paths=pruning_file_paths, pruning_eps=params['pruning_eps'])
 
     #Lets skip this for offline RL
     if not params['offline']:

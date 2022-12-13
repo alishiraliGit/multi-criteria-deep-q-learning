@@ -35,6 +35,22 @@ def get_maximizer_from_available_actions_np(values_na: np.ndarray, acs_list_n) -
     return np.array([acs_list_n[idx][vals[acs_list_n[idx]].argmax()] for idx, vals in enumerate(values_na)])
 
 
+def gather_by_actions(qa_values_nar: torch.tensor, ac_n: torch.tensor) -> torch.tensor:
+    if qa_values_nar.ndim == 3:
+        re_dim = qa_values_nar.shape[-1]
+        ac_n = ac_n.unsqueeze(1).unsqueeze(2).expand(-1, 1, re_dim)
+    elif qa_values_nar.ndim == 2:
+        ac_n = ac_n.unsqueeze(1)
+
+    q_values_nr = torch.gather(
+        qa_values_nar,
+        1,
+        ac_n
+    ).squeeze(1)
+
+    return q_values_nr
+
+
 class Flatten(torch.nn.Module):
     def forward(self, x):
         batch_size = x.shape[0]
@@ -57,6 +73,7 @@ def register_custom_envs():
     register_env('LunarLander-1155', 'lunar_lander_1155')
     register_env('LunarLander-Sparse', 'lunar_lander_0000')
     register_env('LunarLander-Customizable', 'lunar_lander_customizable_rew_weights')
+    register_env('LunarLander-MultiReward', 'lunar_lander_multi_rew')
 
 
 def register_env(env_name, file_name):
@@ -106,6 +123,10 @@ def get_env_kwargs(env_name):
             'ep_len': 200,
         }
         kwargs['exploration_schedule'] = lander_exploration_schedule(kwargs['num_timesteps'])
+
+        # TODO
+        if 'MultiReward' in env_name:
+            kwargs['gamma'] = 1.0
 
     elif env_name.startswith('MIMIC'):
         kwargs = {
@@ -552,10 +573,14 @@ class MemoryOptimizedReplayBuffer(object):
             True if episode was finished after performing that action.
         """
         self.action[idx] = action
+
+        if isinstance(reward, np.ndarray) and self.reward.ndim == 1:
+            self.reward = np.empty([self.size] + list(reward.shape), dtype=np.float32)
+
         self.reward[idx] = reward
         self.done[idx] = done
     
-    def store_offline_data(self,paths):
+    def store_offline_data(self, paths):
 
         # This works since we add offline data only once to the buffer
         self.num_in_buffer = len(paths)
