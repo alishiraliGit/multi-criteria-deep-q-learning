@@ -10,6 +10,9 @@ from cs285.infrastructure import pytorch_util as ptu
 from cs285.infrastructure import utils
 from cs285.infrastructure.dqn_utils import register_custom_envs
 
+from tqdm import tqdm
+
+from sklearn.model_selection import train_test_split
 
 class RLEvaluator(object):
 
@@ -27,10 +30,10 @@ class RLEvaluator(object):
         seed = self.params['seed']
         np.random.seed(seed)
         torch.manual_seed(seed)
-        ptu.init_gpu(
-            use_gpu=not self.params['no_gpu'],
-            gpu_id=self.params['which_gpu']
-        )
+        #ptu.init_gpu(
+        #    use_gpu=not self.params['no_gpu'],
+        #    gpu_id=self.params['which_gpu']
+        #)
 
         # To be set later in run_training_loop
         self.total_envsteps = None
@@ -39,76 +42,87 @@ class RLEvaluator(object):
         #############
         # ENV
         #############
+        if not self.params['offline']:
+            # Make the gym environment
+            register_custom_envs()
 
-        # Make the gym environment
-        register_custom_envs()
+            self.env = gym.make(self.params['env_name'])
 
-        self.env = gym.make(self.params['env_name'])
+            # Added by Ali
+            if params['env_name'] == 'LunarLander-Customizable' and params['env_rew_weights'] is not None:
+                self.env.set_rew_weights(params['env_rew_weights'])
 
-        # Added by Ali
-        if params['env_name'] == 'LunarLander-Customizable' and params['env_rew_weights'] is not None:
-            self.env.set_rew_weights(params['env_rew_weights'])
+            self.episode_trigger = lambda episode: False
 
-        self.episode_trigger = lambda episode: False
+            if 'env_wrappers' in self.params:
+                # These operations are currently only for Atari envs
+                self.env = wrappers.RecordEpisodeStatistics(self.env, deque_size=1000)
+                self.env = ReturnWrapper(self.env)
+                self.env = wrappers.RecordVideo(self.env, os.path.join(self.params['logdir'], 'gym'),
+                                                episode_trigger=self.episode_trigger)
+                self.env = params['env_wrappers'](self.env)
+                self.mean_episode_reward = -float('nan')
+                self.best_mean_episode_reward = -float('inf')
 
-        if 'env_wrappers' in self.params:
-            # These operations are currently only for Atari envs
-            self.env = wrappers.RecordEpisodeStatistics(self.env, deque_size=1000)
-            self.env = ReturnWrapper(self.env)
-            self.env = wrappers.RecordVideo(self.env, os.path.join(self.params['logdir'], 'gym'),
-                                            episode_trigger=self.episode_trigger)
-            self.env = params['env_wrappers'](self.env)
-            self.mean_episode_reward = -float('nan')
-            self.best_mean_episode_reward = -float('inf')
+            self.env.seed(seed)
 
-        self.env.seed(seed)
+            # Import plotting (locally if 'obstacles' env)
+            if not(self.params['env_name'] == 'obstacles-cs285-v0'):
+                import matplotlib
+                matplotlib.use('Agg')
 
-        # Import plotting (locally if 'obstacles' env)
-        if not(self.params['env_name'] == 'obstacles-cs285-v0'):
-            import matplotlib
-            matplotlib.use('Agg')
+            # Maximum length for episodes
+            self.params['ep_len'] = self.params['ep_len'] or self.env.spec.max_episode_steps
 
-        # Maximum length for episodes
-        self.params['ep_len'] = self.params['ep_len'] or self.env.spec.max_episode_steps
+            # Is this env continuous, or discrete?
+            discrete = isinstance(self.env.action_space, gym.spaces.Discrete)
 
-        # Is this env continuous, or discrete?
-        discrete = isinstance(self.env.action_space, gym.spaces.Discrete)
+            # Are the observations images?
+            img = len(self.env.observation_space.shape) > 2
 
-        # Are the observations images?
-        img = len(self.env.observation_space.shape) > 2
+            self.params['agent_params']['discrete'] = discrete
 
-        self.params['agent_params']['discrete'] = discrete
+            # Observation and action sizes
+            ob_dim = self.env.observation_space.shape if img else self.env.observation_space.shape[0]
+            ac_dim = self.env.action_space.n if discrete else self.env.action_space.shape[0]
+            self.params['agent_params']['ac_dim'] = ac_dim
+            self.params['agent_params']['ob_dim'] = ob_dim
 
-        # Observation and action sizes
-        ob_dim = self.env.observation_space.shape if img else self.env.observation_space.shape[0]
-        ac_dim = self.env.action_space.n if discrete else self.env.action_space.shape[0]
-        self.params['agent_params']['ac_dim'] = ac_dim
-        self.params['agent_params']['ob_dim'] = ob_dim
-
-    def run_evaluation_loop(self, n_iter, collect_policy, eval_policy):
+    def run_evaluation_loop(self, n_iter, collect_policy, eval_policy, buffer_path):
         # TODO: Hard-coded
         print_period = 1
 
         opt_actions = []
         pareto_opt_actions = []
 
+        if buffer_path is not None:
+            # Load replay buffer data
+            with open(self.params['buffer_path'], 'rb') as f:
+                all_paths = pickle.load(f)
+            all_paths = utils.format_reward(all_paths,self.params['env_rew_weights'])
+            _, paths = train_test_split(all_paths, test_size=0.2, random_state=self.params['seed'])
+        
+        # We run the loop only once in the MIMIC setting since we do not sample trajectories
+        if self.params['offline']:
+            n_iter = 1
+
         for itr in range(n_iter):
             if itr % print_period == 0:
                 print("\n\n********** Iteration %i ************" % itr)
 
             # Collect trajectories
-            paths, envsteps_this_batch = utils.sample_trajectories(
-                self.env,
-                collect_policy,
-                min_timesteps_per_batch=self.params['batch_size'],
-                max_path_length=self.params['ep_len'],
-                render=False
-            )
+            if buffer_path == None:
+                paths, envsteps_this_batch = utils.sample_trajectories(
+                    self.env,
+                    collect_policy,
+                    min_timesteps_per_batch=self.params['batch_size'],
+                    max_path_length=self.params['ep_len'],
+                    render=False
+                )
 
-            #
-            for path in paths:
+            # get optimal actions and pareto_opt_actions
+            for path in tqdm(paths):
                 opt_actions.append(path['action'].astype(int).tolist())
-
                 pareto_opt_actions.append([eval_policy.get_action(ob) for ob in path['observation']])
 
         # Log/save
