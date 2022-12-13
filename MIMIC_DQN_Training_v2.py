@@ -1,18 +1,17 @@
 import shlex, subprocess
 
-
 """
 command_stem = [
 "python cs285/scripts/run_dqn.py --exp_name MIMICvdl_{r} --env_name MIMIC --env_rew_weights {w} --double_q --seed 1 --scalar_log_freq 2000 --params_log_freq 2000 --offline --no_weights_in_path --buffer_path './Replay_buffer_extraction/Encoded_paths3_all_rewards.pkl'"
 ]
 
 
+#just reweighting of rewards
+name = ['SL1b_w12','SL1b_w21','SL1c_w12','SL1c_w21','Sd2L1b_w12',
+        'Sd2L1b_w21','Sd2Lbc_w12','Sd2Lbc_w21','all_SL_w12','all_SL_w21']#
 
-name = ['baseline','SL1b','SL1c','Sd2L1b','Sd2L1c',
-        'Scb','Lcb','Sd2L','all_inter','xall_sparse']#
-
-reward_weight = ['1 0 0 0 0 0 0 0 0 0 0', '0 0 1 0 0 0 0 1 0 0 0', '0 0 0 0 1 0 0 0 1 0 0', '0 0 0 0 0 0 1 1 0 0 0', '0 0 0 0 0 0 1 0 1 0 0', 
-               '0 0 1 1 0 0 0 0 0 0 0', '0 0 0 0 0 0 0 1 1 0 0', '0 0 0 0 0 0 1 1 1 0 0', '0 0 1 1 0 0 1 1 1 0 0', '1 0 1 1 0 0 1 1 1 0 0']
+reward_weight = ['0 0 1 0 0 0 0 2 0 0 0', '0 0 2 0 0 0 0 1 0 0 0', '0 0 0 1 0 0 0 0 2 0 0', '0 0 0 2 0 0 0 0 1 0 0', '0 0 0 0 0 0 1 2 0 0 0', 
+               '0 0 0 0 0 0 2 1 0 0 0', '0 0 0 0 0 0 1 2 2 0 0', '0 0 0 0 0 0 2 1 1 0 0', '0 0 1 1 0 0 1 2 2 0 0', '0 0 2 2 0 0 2 1 1 0 0']
 
 
 #name = ['baseline','SL1','SOFA1c','SOFA2','SOFA2c',
@@ -46,13 +45,12 @@ if __name__ == "__main__":
         process.wait()
 
 
-
 """
 command_stem = [
 "python cs285/scripts/run_dqn.py --exp_name pDQNvdl_{eps} --env_name MIMIC --pruning_file_prefix MIMICvdl_ --pruning_eps {e} --env_rew_weights 1 0 0 0 0 0 0 0 0 0 0 --double_q --seed 1 --scalar_log_freq 2000 --params_log_freq 2000 --offline --no_weights_in_path --buffer_path './Replay_buffer_extraction/Encoded_paths3_all_rewards.pkl'"
 ]
 
-eps_list = [0,0.05,0.1]
+eps_list = [0.2,0.3]
 
 commands = []
 for command in command_stem:
@@ -80,4 +78,3 @@ reward_path = ['./Replay_buffer_extraction/Paths_Reward_SOFA_1_binary.pkl','./Re
     './Replay_buffer_extraction/Paths_Reward_lac_1_binary.pkl','./Replay_buffer_extraction/Paths_Reward_lac_1_continous.pkl',
     './Replay_buffer_extraction/Paths_Reward_lac_2_binary.pkl','./Replay_buffer_extraction/Paths_Reward_lac_2_continous.pkl']#'./Replay_buffer_extraction/Paths_sparse_90d_rew.pkl',
 """
-
