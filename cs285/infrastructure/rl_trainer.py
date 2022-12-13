@@ -37,10 +37,10 @@ class RLTrainer(object):
         seed = self.params['seed']
         np.random.seed(seed)
         torch.manual_seed(seed)
-        ptu.init_gpu(
-            use_gpu=not self.params['no_gpu'],
-            gpu_id=self.params['which_gpu']
-        )
+        #ptu.init_gpu(
+        #    use_gpu=not self.params['no_gpu'],
+        #    gpu_id=self.params['which_gpu']
+        #)
 
         # To be set later in run_training_loop
         self.total_envsteps = None
@@ -255,7 +255,7 @@ class RLTrainer(object):
                     if not self.offline:
                         self.perform_dqn_logging(all_logs)
                     else:
-                        self.perform_dqn_offline_logging(itr, test_paths, all_logs)
+                        self.perform_dqn_offline_logging(itr, paths, test_paths, all_logs)
                 else:
                     self.perform_logging(itr, paths, eval_policy, train_video_paths, all_logs)
 
@@ -445,15 +445,17 @@ class RLTrainer(object):
 
             self.logger.flush()
     
-    def perform_dqn_offline_logging(self, itr, eval_paths, all_logs):
+    def perform_dqn_offline_logging(self, itr, train_paths, eval_paths, all_logs):
 
         last_log = all_logs[-1]
 
         if len(last_log) == 0:
             return
 
+        #Run for test set
         all_q_values = []
         all_rtgs = []
+        all_rtgs_mort = []
         for eval_path in eval_paths:
             obs_n = eval_path['observation']
             if obs_n.ndim == 1:
@@ -461,6 +463,7 @@ class RLTrainer(object):
 
             ac_n = eval_path['action']
             re_n = eval_path['reward']
+            re_mort_n = eval_path['sparse_90d_rew']
 
             # Get the Q-values
             qa_values_na = self.agent.critic.qa_values(obs_n)
@@ -474,22 +477,71 @@ class RLTrainer(object):
 
             # Get reward-to-go
             rtg_n = utils.discounted_cumsum(re_n, self.params['gamma'])
+            rtg_mort_n = utils.discounted_cumsum(re_mort_n, self.params['gamma'])
 
             # Append
             all_q_values.append(q_values_n)
             all_rtgs.append(rtg_n)
+            all_rtgs_mort.append(rtg_mort_n)
 
         all_q_values = np.concatenate(all_q_values, axis=0)
         all_rtgs = np.concatenate(all_rtgs, axis=0)
+        all_rtgs_mort = np.concatenate(all_rtgs_mort, axis=0)
+
 
         rho = np.corrcoef(all_rtgs, all_q_values)[0, 1]
+        rho_mort = np.corrcoef(all_rtgs_mort, all_q_values)[0, 1]
+
+        #Run for train set
+
+        all_q_values = []
+        all_rtgs = []
+        all_rtgs_mort = []
+        for train_path in train_paths:
+            obs_n = train_path['observation']
+            if obs_n.ndim == 1:
+                obs_n = obs_n[:, np.newaxis]
+
+            ac_n = train_path['action']
+            re_n = train_path['reward']
+            re_mort_n = train_path['sparse_90d_rew']
+
+            # Get the Q-values
+            qa_values_na = self.agent.critic.qa_values(obs_n)
+
+            qa_values_na = ptu.from_numpy(qa_values_na)
+            ac_n = ptu.from_numpy(ac_n).to(torch.long)
+
+            q_values_n = torch.gather(qa_values_na, 1, ac_n.unsqueeze(1)).squeeze(1)
+
+            q_values_n = ptu.to_numpy(q_values_n)
+
+            # Get reward-to-go
+            rtg_n = utils.discounted_cumsum(re_n, self.params['gamma'])
+            rtg_mort_n = utils.discounted_cumsum(re_mort_n, self.params['gamma'])
+
+            # Append
+            all_q_values.append(q_values_n)
+            all_rtgs.append(rtg_n)
+            all_rtgs_mort.append(rtg_mort_n)
+
+        all_q_values = np.concatenate(all_q_values, axis=0)
+        all_rtgs = np.concatenate(all_rtgs, axis=0)
+        all_rtgs_mort = np.concatenate(all_rtgs_mort, axis=0)
+
+        rho_train = np.corrcoef(all_rtgs, all_q_values)[0, 1]
+        rho_train_mort = np.corrcoef(all_rtgs_mort, all_q_values)[0, 1]
 
         # save eval metrics
         if self.log_metrics:
             # decide what to log
             logs = OrderedDict()
             logs['Rho'] = rho
+            logs['Rho_mort'] = rho_mort
+            logs['Rho_train'] = rho_train
+            logs['Rho_mort_train'] = rho_train_mort
             logs['TimeSinceStart'] = time.time() - self.start_time
+            logs["Train_itr"] = itr
             logs.update(last_log)
 
             # Perform the logging
