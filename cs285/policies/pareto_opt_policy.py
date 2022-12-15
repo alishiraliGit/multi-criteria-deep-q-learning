@@ -113,6 +113,53 @@ class ExtendedParetoOptimalPolicy(ParetoOptimalPolicy):
         return [self.find_strong_pareto_optimal_actions(vals, self.eps) for vals in qa_values_nar]
 
 
+class ExtendedLinearOptimalPolicy:
+
+    def __init__(self, critic, b, n_draw=10):
+        self.critic = critic
+        self.b = b
+        self.n_draw = n_draw
+
+    def get_action(self, obs: np.ndarray):
+        if obs.ndim < 2:
+            obs = obs[np.newaxis, :]
+
+        qa_values_are = self.critic.qa_values(obs)[0]
+
+        a, r, e = qa_values_are.shape
+        actions = set()
+        for _ in range(self.n_draw):
+            w_1r1 = np.random.random((1, r, 1))*self.b + 1
+
+            action = (qa_values_are * w_1r1).sum(axis=1).max(axis=1).argmax()
+
+            actions.add(action)
+
+        return list(actions)
+
+    def get_actions(self, ob_no: np.ndarray):
+        if ob_no.ndim < 2:
+            ob_no = ob_no[np.newaxis, :]
+
+        qa_values_nare = self.critic.qa_values(ob_no)
+
+        n, a, r, e = qa_values_nare.shape
+        actions_n = []
+
+        for qa_values_are in qa_values_nare:
+            actions = set()
+            for _ in range(self.n_draw):
+                w_1r1 = np.random.random((1, r, 1)) * self.b + 1
+
+                action = (qa_values_are * w_1r1).sum(axis=1).max(axis=1).argmax()
+
+                actions.add(action)
+
+            actions_n.append(list(actions))
+
+        return actions_n
+
+
 class RandomParetoOptimalActionPolicy(object):
 
     def __init__(self, critic, eps=0):

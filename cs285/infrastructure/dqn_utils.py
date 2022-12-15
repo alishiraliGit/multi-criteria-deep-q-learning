@@ -93,6 +93,7 @@ def register_custom_envs():
     register_env('LunarLander-Sparse', 'lunar_lander_0000')
     register_env('LunarLander-Customizable', 'lunar_lander_customizable_rew_weights')
     register_env('LunarLander-MultiReward', 'lunar_lander_multi_rew')
+    register_env('LunarLander-MultiInterReward', 'lunar_lander_multi_inter_rew')
 
 
 def register_env(env_name, file_name):

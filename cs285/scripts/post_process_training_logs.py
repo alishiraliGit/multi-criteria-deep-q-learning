@@ -32,7 +32,7 @@ if __name__ == '__main__':
     os.makedirs(save_path_, exist_ok=True)
 
     # Find relevant files
-    prefix_ = 'p4_opt'  # 'p11_eps*_alpha*_pruned_*'  # 'p6_eps0.0-0.0_alpha1.0_pruned_sparse'
+    prefix_ = 'p15_*eps0.3_e8_pruned'  # 'p6_eps0.0-0.0_alpha1.0_pruned_sparse'
     folder_paths_ = glob.glob(os.path.join(load_path_, prefix_ + '*'))
     file_paths_ = [glob.glob(os.path.join(f, 'events*'))[0] for f in folder_paths_]
 
@@ -41,9 +41,9 @@ if __name__ == '__main__':
 
     # Extract data
     x_tag_ = 'Train_EnvstepsSoFar'
-    y_tag_ = 'Train_AverageReturn'
+    y_tag_ = 'Train_BestReturn'
 
-    xs_ = [get_section_results(f, [x_tag_])[x_tag_][:-1] for f in file_paths_]
+    xs_ = [get_section_results(f, [x_tag_])[x_tag_] for f in file_paths_]
 
     ys_ = [get_section_results(f, [y_tag_])[y_tag_] for f in file_paths_]
 
@@ -51,7 +51,8 @@ if __name__ == '__main__':
     plt.figure(figsize=(5, 4))
 
     for cnt_ in range(len(xs_)):
-        plt.plot(xs_[cnt_], ys_[cnt_])
+        n_ = np.minimum(len(xs_[cnt_]), len(ys_[cnt_]))
+        plt.plot(xs_[cnt_][:n_], ys_[cnt_][:n_])
 
     plt.legend([f.split('_')[1] for f in folder_paths_])
 

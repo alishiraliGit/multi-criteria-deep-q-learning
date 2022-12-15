@@ -45,11 +45,7 @@ class DQNAgent(object):
         else:
             if self.mdqn:
                 self.critic = MDQNCritic(agent_params, self.optimizer_spec)
-
-                if agent_params['uniform_consistent_mdqn']:
-                    self.actor = UniformRandomParetoOptimalActionPolicy(self.critic, b=agent_params['w_bound'])
-                else:
-                    self.actor = RandomParetoOptimalActionPolicy(self.critic, eps=agent_params['pruning_eps'])
+                self.actor = UniformRandomParetoOptimalActionPolicy(self.critic, b=agent_params['w_bound'])
 
             elif self.emdqn:
                 self.critic = ExtendedMDQNCritic(agent_params, self.optimizer_spec)

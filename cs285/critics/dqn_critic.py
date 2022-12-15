@@ -191,10 +191,11 @@ class MDQNCritic(BaseCritic):
         # Pruning
         self.eps = hparams['pruning_eps']
         self.optimistic = hparams.get('optimistic_mdqn', False)
-        self.uniform_consistent = hparams.get('uniform_consistent_mdqn', False)
+        self.diverse = hparams.get('diverse_mdqn', False)
         self.consistent = hparams.get('consistent_mdqn', False)
-        if np.sum([self.optimistic, self.consistent, self.uniform_consistent]) > 1:
+        if np.sum([self.optimistic, self.diverse, self.consistent]) != 1:
             raise Exception('MDQN type is inconsistently defined!')
+
         self.alpha = hparams['consistency_alpha']
         self.b = hparams['w_bound']
 
@@ -224,26 +225,35 @@ class MDQNCritic(BaseCritic):
             q_tp1_values_nr, _ = qa_tp1_values_nar.max(dim=1)
 
         #####################
-        # Uniform consistent
+        # Consistent
         #####################
         # Select the action for uniform consistent
-        elif self.uniform_consistent:
+        elif self.consistent:
+            n, a, r = qa_t_values_nar.shape
+
             # Draw ws
-            w1_nr = torch.rand(q_t_values_nr.shape)*self.b + 1
-            w2_nr = torch.rand(q_t_values_nr.shape)*self.b + 1
+            w1_n1r = torch.rand((n, 1, r))*self.b + 1
+            w2_n1r = torch.rand((n, 1, r))*self.b + 1
 
             # Find the inner-products
-            prod_1_n = (q_t_values_nr.detach() * w1_nr).sum(dim=1)
-            prod_2_n = (q_t_values_nr.detach() * w2_nr).sum(dim=1)
+            prod_1_na = (qa_t_values_nar.detach() * w1_n1r).sum(dim=2)
+            prod_2_na = (qa_t_values_nar.detach() * w2_n1r).sum(dim=2)
+
+            prod_1_n = gather_by_actions(prod_1_na, ac_n)
+            prod_2_n = gather_by_actions(prod_2_na, ac_n)
+
+            # Find the softmax probs
+            prob_1_n = torch.exp(self.alpha * prod_1_n) / torch.exp(self.alpha * prod_1_na).sum(dim=1)
+            prob_2_n = torch.exp(self.alpha * prod_2_n) / torch.exp(self.alpha * prod_2_na).sum(dim=1)
 
             # Find likelihood ratio
-            likelihood_n = torch.exp(self.alpha * prod_2_n) / torch.exp(self.alpha * prod_1_n)
+            likelihood_n = prob_2_n / prob_1_n
 
             # Select the better w
             rnd_n = torch.rand(likelihood_n.shape)
             choice_n = (rnd_n < likelihood_n) * 1
 
-            ws_n2r = torch.stack([w1_nr, w2_nr], dim=1)
+            ws_n2r = torch.stack([w1_n1r.squeeze(1), w2_n1r.squeeze(1)], dim=1)
 
             w_nr = gather_by_actions(ws_n2r, choice_n)
 
@@ -254,48 +264,21 @@ class MDQNCritic(BaseCritic):
 
             q_tp1_values_nr = gather_by_actions(qa_tp1_values_nar, ac_tp1_n)
 
+        #####################
+        # Diverse
+        #####################
         else:
-            #####################
-            # MDQN default
-            #####################
-            # Select the next action
-            available_actions_n = [
-                ParetoOptimalPolicy.find_strong_pareto_optimal_actions(vals, eps=self.eps)
-                for vals in ptu.to_numpy(qa_tp1_values_nar)
-            ]
+            n, a, r = qa_t_values_nar.shape
 
-            ac_tp1_n = np.array([np.random.choice(actions) for actions in available_actions_n])
-            ac_tp1_n = ptu.from_numpy(ac_tp1_n).to(torch.long)
+            # Draw w
+            w_nr = torch.rand((n, r)) * self.b + 1
 
-            # Find Q-values for the selected actions
+            # Get the best actions for the selected w
+            qa_tp1_values_na = (qa_tp1_values_nar * w_nr.unsqueeze(1).expand(qa_tp1_values_nar.shape)).sum(dim=2)
+
+            ac_tp1_n = qa_tp1_values_na.argmax(dim=1)
+
             q_tp1_values_nr = gather_by_actions(qa_tp1_values_nar, ac_tp1_n)
-
-            #####################
-            # Consistent
-            #####################
-            if self.consistent:
-                # Draw a new action (prime) and find its Q-values
-                acp_tp1_n = np.array([np.random.choice(actions) for actions in available_actions_n])
-                acp_tp1_n = ptu.from_numpy(acp_tp1_n).to(torch.long)
-                qp_tp1_values_nr = gather_by_actions(qa_tp1_values_nar, acp_tp1_n)
-
-                # Find inner-products of Q_a and Q_a'
-                prod_t_tp1_n = (q_t_values_nr.detach() * q_tp1_values_nr).sum(dim=1)
-                prodp_t_tp1_n = (q_t_values_nr.detach() * qp_tp1_values_nr).sum(dim=1)
-
-                # Find likelihood ratio
-                likelihood_n = torch.exp(self.alpha*prodp_t_tp1_n)/torch.exp((self.alpha*prod_t_tp1_n))
-
-                # Select the better action
-                rnd_n = torch.rand(likelihood_n.shape)
-                choice_n = (rnd_n < likelihood_n)*1
-
-                acs_tp1_n2 = torch.stack([ac_tp1_n, acp_tp1_n], dim=1)
-
-                ac_tp1_n = gather_by_actions(acs_tp1_n2, choice_n)
-
-                # Find Q-values for the selected actions
-                q_tp1_values_nr = gather_by_actions(qa_tp1_values_nar, ac_tp1_n)
 
         # Compute targets for minimizing Bellman error
         # currentReward + self.gamma * qValuesOfNextTimestep * (not terminal)
@@ -397,7 +380,10 @@ class ExtendedMDQNCritic(BaseCritic):
         self.mq_net_target.to(ptu.device)
 
         # Pruning
-        self.consistent = hparams.get('consistent_emdqn', True)
+        self.diverse = hparams.get('diverse_emdqn', False)
+        self.consistent = hparams.get('consistent_emdqn', False)
+        if np.sum([self.diverse, self.consistent]) != 1:
+            raise Exception('EMDQN type is inconsistently defined!')
 
         self.alpha = hparams['consistency_alpha']
         self.b = hparams['w_bound']
@@ -464,7 +450,7 @@ class ExtendedMDQNCritic(BaseCritic):
             q_tp1_values_nre = gather_by_actions(qa_tp1_values_nare, ac_tp1_n)
 
         #####################
-        # Inconsistent
+        # Diverse
         #####################
         else:
             # Draw ws

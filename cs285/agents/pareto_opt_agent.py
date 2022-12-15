@@ -1,7 +1,8 @@
 import warnings
 
 from cs285.agents.base_agent import BaseAgent
-from cs285.policies.pareto_opt_policy import ParetoOptimalPolicy, ExtendedParetoOptimalPolicy
+from cs285.policies.pareto_opt_policy import ParetoOptimalPolicy, ExtendedParetoOptimalPolicy, \
+    ExtendedLinearOptimalPolicy
 from cs285.critics.pareto_opt_dqn_critic import ParetoOptDQNCritic
 from cs285.critics.dqn_critic import MDQNCritic, ExtendedMDQNCritic
 
@@ -54,7 +55,8 @@ class LoadedParetoOptExtendedMDQNAgent(BaseAgent):
         super().__init__(**kwargs)
 
         self.critic = ExtendedMDQNCritic.load(file_path)
-        self.actor = ExtendedParetoOptimalPolicy(self.critic, eps=pruning_eps)
+        # self.actor = ExtendedParetoOptimalPolicy(self.critic, eps=pruning_eps)
+        self.actor = ExtendedLinearOptimalPolicy(self.critic, b=self.critic.b)
 
     def train(self) -> dict:
         pass

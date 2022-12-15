@@ -43,13 +43,12 @@ def main():
     parser.add_argument('--pruning_eps', type=float, default=0., help='Look at pareto_opt_policy.')
 
     # MDQN
-    parser.add_argument('--mdqn', action='store_true')
     parser.add_argument('--optimistic_mdqn', action='store_true')
+    parser.add_argument('--diverse_mdqn', action='store_true')
     parser.add_argument('--consistent_mdqn', action='store_true')
-    parser.add_argument('--uniform_consistent_mdqn', action='store_true')
 
     # EMDQN
-    parser.add_argument('--emdqn', action='store_true')
+    parser.add_argument('--diverse_emdqn', action='store_true')
     parser.add_argument('--consistent_emdqn', action='store_true')
     parser.add_argument('--ex_dim', type=int, default=1)
 
@@ -87,11 +86,15 @@ def main():
     if params['offline'] and params['buffer_path'] is None:
         raise Exception('Please provide a buffer_path to enable offline learning')
 
-    if params['optimistic_mdqn'] or params['consistent_mdqn'] or params['uniform_consistent_mdqn']:
+    if params['optimistic_mdqn'] or params['diverse_mdqn'] or params['consistent_mdqn']:
         params['mdqn'] = True
+    else:
+        params['mdqn'] = False
 
-    if params['consistent_emdqn']:
+    if params['diverse_emdqn'] or params['consistent_emdqn']:
         params['emdqn'] = True
+    else:
+        params['emdqn'] = False
 
     prune_with_mdqn = params['prune_with_mdqn']
     prune_with_emdqn = params['prune_with_emdqn']

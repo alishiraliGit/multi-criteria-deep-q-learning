@@ -14,8 +14,9 @@ if __name__ == "__main__":
     if not(os.path.exists(fig_path_)):
         os.makedirs(fig_path_)
 
-    exp_name_ = 'p15_eps0.0_e8_eval_LunarLander-Customizable'
-    # 'p7_eps0.0-0.0_alpha100_eval_LunarLander-Customizable'
+    exp_name_ = 'f5_eval_LunarLander-Customizable'
+    # exp_name_ = 'p4_eps0.3_eval_LunarLander-Customizable'
+
     all_folders_ = glob.glob(os.path.join(data_path_, exp_name_ + '*'))
     if len(all_folders_) > 1:
         raise Exception('More than one folder with this exp_name prefix found!')
@@ -43,6 +44,9 @@ if __name__ == "__main__":
 
     # Analyze Pareto action space
     pareto_sizes = [len(x) for x in pareto_set]
+    # TODO: temporary solution to have all the x-axis from 1 to 6
+    # pareto_sizes.extend(range(1, 7))
+
     mean_size = statistics.mean(pareto_sizes)
     std_size = statistics.stdev(pareto_sizes)
 
@@ -57,7 +61,10 @@ if __name__ == "__main__":
     plt.bar(sizes, counts, color='blue')  
     plt.ylabel('Number of observations')
     plt.xlabel('Pareto set size (# of actions)')
-    plt.title('Pareto-set size distribution')
+    # plt.title('Pareto-set size distribution')
+    plt.title('PrunedConsistentExtendedMDQN')
+
+    plt.tight_layout()
 
     plt.savefig(os.path.join(fig_path_, exp_name_ + '_counts.pdf'))
 
