@@ -11,6 +11,7 @@ from cs285.agents.dqn_agent import DQNAgent
 from cs285.agents.pareto_opt_agent import LoadedParetoOptDQNAgent, LoadedParetoOptMDQNAgent,\
     LoadedParetoOptExtendedMDQNAgent
 from cs285.infrastructure.dqn_utils import get_env_kwargs
+from cs285.infrastructure import pytorch_util as ptu
 
 
 def main():
@@ -138,6 +139,12 @@ def main():
     ##################################
     # Pruning (if requested)
     ##################################
+
+    ptu.init_gpu(
+            use_gpu=not params['no_gpu'],
+            gpu_id=params['which_gpu']
+        )
+    
     if prune:
         pruning_folder_paths = glob.glob(os.path.join(data_path, params['pruning_file_prefix'] + '*'))
 
@@ -161,8 +168,6 @@ def main():
     ##################################
     params['agent_class'] = DQNAgent
     params['agent_params'] = params
-
-    print(params['offline'])
 
     rl_trainer = RLTrainer(params)
     rl_trainer.run_training_loop(

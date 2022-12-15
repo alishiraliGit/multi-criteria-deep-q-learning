@@ -150,7 +150,7 @@ def get_env_kwargs(env_name):
 
     elif env_name.startswith('MIMIC'):
         kwargs = {
-            'optimizer_spec': lander_optimizer(),
+            'optimizer_spec': mimic_optimizer(),
             'q_func': create_mimic_q_network,
             'replay_buffer_size': 500000,
             'batch_size': 32,
@@ -161,7 +161,7 @@ def get_env_kwargs(env_name):
             'target_update_freq': 3000,
             'grad_norm_clipping': 10,
             'lander': False,
-            'num_timesteps': 300000,
+            'num_timesteps': 40000,
             'env_wrappers': empty_wrapper,
             'exploration_schedule': None,
         }

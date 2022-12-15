@@ -142,6 +142,9 @@ class DQNCritic(BaseCritic):
         dqn_critic.q_net.load_state_dict(checkpoint['q_net_state_dict'])
         dqn_critic.q_net_target.load_state_dict(checkpoint['q_net_target_state_dict'])
 
+        dqn_critic.q_net.to(ptu.device)
+        dqn_critic.q_net_target.to(ptu.device)
+
         return dqn_critic
 
 

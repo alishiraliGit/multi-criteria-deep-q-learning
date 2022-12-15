@@ -121,3 +121,47 @@ python cs285/scripts/run_dqn.py \
 --offline \
 --no_weights_in_path --buffer_path './Replay_buffer_extraction/Encoded_paths_all_rewards.pkl'
 ```
+
+### To run Pruned DQN
+
+```shell
+python cs285/scripts/run_dqn.py \
+--exp_name pDQNvdl_30 \
+--env_name MIMIC \
+--pruning_file_prefix MIMICvdl_ \
+--pruning_eps 0.3 \
+--env_rew_weights 1 0 0 0 0 0 0 0 0 0 0 \
+--double_q --seed 1 \
+--scalar_log_freq 2000 --params_log_freq 2000 \
+--offline --no_weights_in_path \
+--buffer_path './Replay_buffer_extraction/Encoded_paths3_all_rewards.pkl'
+```
+
+python cs285/scripts/run_dqn.py --exp_name off_pDQN{eps} --env_name MIMIC --pruning_file_prefix MIMIC_ --pruning_eps {eps} --env_rew_weights 1 0 0 0 0 0 0 0 0 0 0 --double_q --seed 1 --no_gpu --offline --no_weights_in_path --buffer_path './Replay_buffer_extraction/Encoded_paths_all_rewards.pkl
+
+### To run Pruned DQN Evaluation
+
+```shell
+python cs285/scripts/run_eval_pareto_opt_dqn.py \
+--exp_name pDQNvdl30_eval \
+--env_name MIMIC \
+--pruning_file_prefix MIMICvdl_ \
+--pruning_eps 0.3 \
+--env_rew_weights 1 0 0 0 0 0 0 0 0 0 0 \
+--seed 1 \
+--offline \
+--no_weights_in_path --buffer_path '../../Replay_buffer_extraction/Encoded_paths3_all_rewards.pkl' 
+```
+
+python run_eval_pareto_opt_dqn.py --exp_name pDQN_30_eval --env_name MIMIC --pruning_file_prefix MIMIC_[Sbl][aO] --pruning_eps 0.3 --env_rew_weights 1 0 0 0 0 0 0 0 0 0 0 --seed 1 --offline --no_weights_in_path --buffer_path  --no_gpu
+
+python run_eval_pareto_opt_dqn.py \
+--exp_name pDQN_0_eval \
+--env_name MIMIC \
+--pruning_file_prefix MIMIC_[Sbl][aO] \
+--pruning_eps 0.0 \
+--env_rew_weights 1 0 0 0 0 0 0 0 0 0 0 \
+--seed 1 \
+--offline \
+--no_weights_in_path --buffer_path '../../Replay_buffer_extraction/Encoded_paths_all_rewards.pkl' \
+--no_gpu

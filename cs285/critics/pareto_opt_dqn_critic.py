@@ -3,6 +3,7 @@ import numpy as np
 from .base_critic import BaseCritic
 
 from cs285.critics.dqn_critic import DQNCritic
+from cs285.infrastructure import pytorch_util as ptu
 
 
 class ParetoOptDQNCritic(BaseCritic):
@@ -19,6 +20,11 @@ class ParetoOptDQNCritic(BaseCritic):
         # Check all critics have similar dimensions
         assert len(set([dqn_critic.ob_dim for dqn_critic in self.dqn_critics])) == 1
         assert len(set([dqn_critic.ac_dim for dqn_critic in self.dqn_critics])) == 1
+
+        #Set all critics to device
+        for dqn_critic in self.dqn_critics:
+            dqn_critic.q_net.to(ptu.device)
+            dqn_critic.q_net_target.to(ptu.device)
 
     def update(self, ob_no, ac_na, next_ob_no, reward_n, terminal_n):
         pass
