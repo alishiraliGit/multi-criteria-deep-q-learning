@@ -1,9 +1,10 @@
 import warnings
 
 from cs285.agents.base_agent import BaseAgent
-from cs285.policies.pareto_opt_policy import ParetoOptimalPolicy
+from cs285.policies.pareto_opt_policy import ParetoOptimalPolicy, ExtendedParetoOptimalPolicy, \
+    ExtendedLinearOptimalPolicy
 from cs285.critics.pareto_opt_dqn_critic import ParetoOptDQNCritic, ParetoOptCQLCritic 
-from cs285.critics.dqn_critic import MDQNCritic
+from cs285.critics.dqn_critic import MDQNCritic, ExtendedMDQNCritic
 
 
 class LoadedParetoOptDQNAgent(BaseAgent):
@@ -54,6 +55,14 @@ class LoadedParetoOptCQLAgent(BaseAgent):
 
         self.critic = ParetoOptCQLCritic(saved_dqn_critics_paths=file_paths)
         self.actor = ParetoOptimalPolicy(self.critic, eps=pruning_eps)
+
+class LoadedParetoOptExtendedMDQNAgent(BaseAgent):
+    def __init__(self, file_path, pruning_eps, **kwargs):
+        super().__init__(**kwargs)
+
+        self.critic = ExtendedMDQNCritic.load(file_path)
+        # self.actor = ExtendedParetoOptimalPolicy(self.critic, eps=pruning_eps)
+        self.actor = ExtendedLinearOptimalPolicy(self.critic, b=self.critic.b)
 
     def train(self) -> dict:
         pass

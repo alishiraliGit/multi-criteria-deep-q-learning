@@ -37,6 +37,9 @@ class PrunedArgMaxPolicy:
 
         choose_from_pruned = False if self.action_pruner is None else True
 
+        # TODO
+        choose_from_pruned = False if np.random.random() < 0.0 else choose_from_pruned
+
         if choose_from_pruned:
             available_actions = self.action_pruner.get_actions(obs)
 

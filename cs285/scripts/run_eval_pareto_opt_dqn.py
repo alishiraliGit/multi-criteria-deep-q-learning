@@ -8,7 +8,7 @@ sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 
 
 from cs285.infrastructure.rl_evaluator import RLEvaluator
 from cs285.agents.dqn_agent import LoadedDQNAgent
-from cs285.agents.pareto_opt_agent import LoadedParetoOptDQNAgent, LoadedParetoOptMDQNAgent, LoadedParetoOptCQLAgent
+from cs285.agents.pareto_opt_agent import LoadedParetoOptDQNAgent, LoadedParetoOptMDQNAgent, LoadedParetoOptCQLAgent, LoadedParetoOptExtendedMDQNAgent
 from cs285.infrastructure.dqn_utils import get_env_kwargs
 from cs285.infrastructure import pytorch_util as ptu
 
@@ -36,11 +36,11 @@ def main():
     # Pruning
     parser.add_argument('--pruning_eps', type=float, default=0., help='Look at pareto_opt_policy.')
 
+    # MDQN
     parser.add_argument('--mdqn', action='store_true')
-    parser.add_argument('--optimistic_mdqn', action='store_true')
-    parser.add_argument('--consistent_mdqn', action='store_true')
-    parser.add_argument('--uniform_consistent_mdqn', action='store_true')
-    parser.add_argument('--consistency_alpha', type=float, default=1, help='Look at MDQN in critics.')
+
+    # EMDQN
+    parser.add_argument('--emdqn', action='store_true')
 
     # System
     parser.add_argument('--seed', type=int, default=1)
@@ -66,11 +66,9 @@ def main():
     # Decision booleans
     customize_rew = False if params['env_rew_weights'] is None else True
 
-    if params['optimistic_mdqn'] or params['consistent_mdqn'] or params['uniform_consistent_mdqn']:
-        params['mdqn'] = True
-
     mdqn = params['mdqn']
     cql = params['cql']
+    emdqn = params['emdqn']
 
     ##################################
     # Create directory for logging
@@ -111,12 +109,23 @@ def main():
     ##################################
     # Load saved models
     ##################################
-
-    #set device
+    # set device
     ptu.init_gpu(
-            use_gpu=not params['no_gpu'],
-            gpu_id=params['which_gpu']
-        )
+        use_gpu=not params['no_gpu'],
+        gpu_id=params['which_gpu']
+    )
+
+    if mdqn or emdqn:
+        if mdqn:
+            pruning_folder_paths = glob.glob(os.path.join(data_path, params['pruning_file_prefix'] + '*'))
+            assert len(pruning_folder_paths) == 1
+            pruning_file_path = os.path.join(pruning_folder_paths[0], 'dqn_agent.pt')
+            if mdqn:
+                pruning_agent = LoadedParetoOptMDQNAgent(file_path=pruning_file_path,
+                                                         pruning_eps=params['pruning_eps'])
+            else:
+                pruning_agent = LoadedParetoOptExtendedMDQNAgent(file_path=pruning_file_path,
+                                                             pruning_eps=params['pruning_eps'])
 
     if mdqn:
         pruning_folder_paths = glob.glob(os.path.join(data_path, params['pruning_file_prefix'] + '*'))
@@ -150,14 +159,14 @@ def main():
             params['num_traj'],
             collect_policy=opt_agent.actor,
             eval_policy=pruning_agent.actor,
-            buffer_path = params['buffer_path']
+            buffer_path=params['buffer_path']
         )
     else:
         rl_evaluator.run_evaluation_loop(
             params['num_traj'],
             collect_policy=None,
             eval_policy=pruning_agent.actor,
-            buffer_path = params['buffer_path']
+            buffer_path=params['buffer_path']
         )
 
 

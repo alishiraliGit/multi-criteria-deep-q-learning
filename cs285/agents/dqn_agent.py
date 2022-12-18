@@ -3,8 +3,8 @@ import numpy as np
 from cs285.infrastructure.dqn_utils import MemoryOptimizedReplayBuffer, PiecewiseSchedule
 from cs285.agents.base_agent import BaseAgent
 from cs285.policies.argmax_policy import ArgMaxPolicy, PrunedArgMaxPolicy
-from cs285.policies.pareto_opt_policy import RandomParetoOptimalActionPolicy, UniformRandomParetoOptimalActionPolicy
-from cs285.critics.dqn_critic import DQNCritic, PrunedDQNCritic, MDQNCritic
+from cs285.policies.pareto_opt_policy import RandomParetoOptimalActionPolicy, UniformRandomParetoOptimalActionPolicy, ExtendedUniformRandomParetoOptimalActionPolicy
+from cs285.critics.dqn_critic import DQNCritic, PrunedDQNCritic, MDQNCritic, ExtendedMDQNCritic
 from cs285.critics.cql_critic import CQLCritic, PrunedCQLCritic
 
 
@@ -15,7 +15,9 @@ class DQNAgent(object):
 
         self.offline = agent_params['offline']
         self.mdqn = agent_params['mdqn']
+
         self.cql = agent_params['cql']
+        self.emdqn = agent_params['emdqn']
 
         self.agent_params = agent_params
 
@@ -49,6 +51,11 @@ class DQNAgent(object):
         else:
             if self.mdqn:
                 self.critic = MDQNCritic(agent_params, self.optimizer_spec)
+                self.actor = UniformRandomParetoOptimalActionPolicy(self.critic, b=agent_params['w_bound'])
+
+            elif self.emdqn:
+                self.critic = ExtendedMDQNCritic(agent_params, self.optimizer_spec)
+                self.actor = ExtendedUniformRandomParetoOptimalActionPolicy(self.critic, b=agent_params['w_bound'])
 
                 if agent_params['uniform_consistent_mdqn']:
                     self.actor = UniformRandomParetoOptimalActionPolicy(self.critic)
@@ -107,7 +114,7 @@ class DQNAgent(object):
             action = self.actor.get_action(frames)[0]
         
         # Take a step in the environment using the action from the policy
-        if self.mdqn:
+        if self.mdqn or self.emdqn:
             self.last_obs, reward, done, _info = self.env.careless_step(action)
         else:
             self.last_obs, reward, done, _info = self.env.step(action)
