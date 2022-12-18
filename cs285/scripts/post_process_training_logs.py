@@ -46,6 +46,10 @@ if __name__ == '__main__':
     #Check whether plot should be saved
     parser.add_argument('--save', action='store_true')
 
+    #Check whether I should print the positive correlation labels
+    parser.add_argument('--print_positive', action='store_true')
+    parser.add_argument('--threshold', type=float, default=0.05)
+
     args = parser.parse_args()
 
     # Convert to dictionary
@@ -120,6 +124,13 @@ if __name__ == '__main__':
     plt.tight_layout()
 
     if params['save']:
-        plt.savefig(os.path.join(save_path_, prefix_ + f'{params["y_tag"]}_learning-curves.pdf'))
+        plt.savefig(os.path.join(save_path_, prefix_ + f'{params["y_tag"]}_learning-curves.jpg'))
 
     plt.show()
+
+    #Check which models perform above threshold at last iteration
+    if params['print_positive']:
+        last_ys = [y[-1] for y in ys_]
+        last_y_above_t = [y>params['threshold'] for y in last_ys] 
+        labels = ["".join(f.split('_')[1:2]) for f in folder_paths_]
+        labels_above_t = [print(label) for i, label in enumerate(labels) if last_y_above_t[i]==True]

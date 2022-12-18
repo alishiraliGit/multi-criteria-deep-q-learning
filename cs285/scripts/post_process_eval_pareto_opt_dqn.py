@@ -42,7 +42,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     #get prefix information for models
-    parser.add_argument('--prefix', type=str, default="pDQNvdl*_eval")
+    parser.add_argument('--prefix', type=str, default="pCQLvdl*_eval")
 
     #specify learning curves to display
     parser.add_argument('--opt_action_tag', type=str, default="opt_actions")
@@ -146,7 +146,7 @@ if __name__ == "__main__":
         plt.xlim(0, 25)
 
         if params['save']:
-            plt.savefig(os.path.join(fig_path_, folder_paths_short[i] + '_counts.pdf'))
+            plt.savefig(os.path.join(fig_path_, folder_paths_short[i] + '_counts.jpg'))
 
         plt.show()
 
@@ -158,6 +158,8 @@ if __name__ == "__main__":
     ## What is the size of the pareto sets?
     mean_sizes = np.array([statistics.mean(pareto_sizes) for pareto_sizes in pareto_set_sizes])
     std_sizes = np.array([statistics.stdev(pareto_sizes) for pareto_sizes in pareto_set_sizes]) #for CI
+
+    print(mean_sizes)
 
     #plot mean_sizes and std by eps
 
@@ -177,7 +179,7 @@ if __name__ == "__main__":
     plt.tight_layout()
 
     if params['save']:
-        plt.savefig(os.path.join(fig_path_, folder_paths_short[i] + '_mean_set_size.pdf'))
+        plt.savefig(os.path.join(fig_path_, folder_paths_short[i] + '_mean_set_size.jpg'))
 
     plt.show()
 
@@ -192,6 +194,8 @@ if __name__ == "__main__":
 
     pareto_mean_accuracy = np.array([statistics.mean(pareto_set_accuracy)*100 for pareto_set_accuracy in pareto_set_accuracies])
     pareto_std_accuracy = np.array([statistics.stdev(pareto_set_accuracy)*100 for pareto_set_accuracy in pareto_set_accuracies])
+
+    print(pareto_mean_accuracy)
 
     #plot pareto_set accuracy
 
@@ -209,7 +213,7 @@ if __name__ == "__main__":
     plt.tight_layout()
 
     if params['save']:
-        plt.savefig(os.path.join(fig_path_, folder_paths_short[i] + '_mean_pareto_acc.pdf'))
+        plt.savefig(os.path.join(fig_path_, folder_paths_short[i] + '_mean_pareto_acc.jpg'))
 
     plt.show()
 
@@ -241,7 +245,7 @@ if __name__ == "__main__":
         plt.title(f'Pareto-set accuracy by size eps={eps_list_sorted[i]}')
 
         if params['save']:
-            plt.savefig(os.path.join(fig_path_, folder_paths_short[i] + '_acc_by_size.pdf'))
+            plt.savefig(os.path.join(fig_path_, folder_paths_short[i] + '_acc_by_size.jpg'))
 
         plt.show()
         

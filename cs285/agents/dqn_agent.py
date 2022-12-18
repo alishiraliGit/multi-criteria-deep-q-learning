@@ -5,6 +5,7 @@ from cs285.agents.base_agent import BaseAgent
 from cs285.policies.argmax_policy import ArgMaxPolicy, PrunedArgMaxPolicy
 from cs285.policies.pareto_opt_policy import RandomParetoOptimalActionPolicy, UniformRandomParetoOptimalActionPolicy
 from cs285.critics.dqn_critic import DQNCritic, PrunedDQNCritic, MDQNCritic
+from cs285.critics.cql_critic import CQLCritic, PrunedCQLCritic
 
 
 class DQNAgent(object):
@@ -14,6 +15,7 @@ class DQNAgent(object):
 
         self.offline = agent_params['offline']
         self.mdqn = agent_params['mdqn']
+        self.cql = agent_params['cql']
 
         self.agent_params = agent_params
 
@@ -38,8 +40,12 @@ class DQNAgent(object):
 
         # Actor/Critic
         if prune:
-            self.critic = PrunedDQNCritic(agent_params, self.optimizer_spec, agent_params['action_pruner'])
-            self.actor = PrunedArgMaxPolicy(self.critic, agent_params['action_pruner'])
+            if self.cql:
+                self.critic = PrunedCQLCritic(agent_params, self.optimizer_spec, agent_params['action_pruner'])
+                self.actor = PrunedArgMaxPolicy(self.critic, agent_params['action_pruner'])
+            else:
+                self.critic = PrunedDQNCritic(agent_params, self.optimizer_spec, agent_params['action_pruner'])
+                self.actor = PrunedArgMaxPolicy(self.critic, agent_params['action_pruner'])
         else:
             if self.mdqn:
                 self.critic = MDQNCritic(agent_params, self.optimizer_spec)
@@ -48,6 +54,9 @@ class DQNAgent(object):
                     self.actor = UniformRandomParetoOptimalActionPolicy(self.critic)
                 else:
                     self.actor = RandomParetoOptimalActionPolicy(self.critic, eps=agent_params['pruning_eps'])
+            elif self.cql:
+                self.critic = CQLCritic(agent_params, self.optimizer_spec)
+                self.actor = ArgMaxPolicy(self.critic)
             else:
                 self.critic = DQNCritic(agent_params, self.optimizer_spec)
                 self.actor = ArgMaxPolicy(self.critic)
@@ -146,6 +155,25 @@ class LoadedDQNAgent(BaseAgent):
         super().__init__(**kwargs)
 
         self.critic = DQNCritic.load(file_path)
+        self.actor = ArgMaxPolicy(self.critic)
+
+    def train(self) -> dict:
+        pass
+
+    def add_to_replay_buffer(self, paths):
+        pass
+
+    def sample(self, batch_size):
+        pass
+
+    def save(self, path):
+        pass
+
+class LoadedCQLAgent(BaseAgent):
+    def __init__(self, file_path, **kwargs):
+        super().__init__(**kwargs)
+
+        self.critic = CQLCritic.load(file_path)
         self.actor = ArgMaxPolicy(self.critic)
 
     def train(self) -> dict:

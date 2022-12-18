@@ -8,7 +8,7 @@ sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 
 
 from cs285.infrastructure.rl_evaluator import RLEvaluator
 from cs285.agents.dqn_agent import LoadedDQNAgent
-from cs285.agents.pareto_opt_agent import LoadedParetoOptDQNAgent, LoadedParetoOptMDQNAgent
+from cs285.agents.pareto_opt_agent import LoadedParetoOptDQNAgent, LoadedParetoOptMDQNAgent, LoadedParetoOptCQLAgent
 from cs285.infrastructure.dqn_utils import get_env_kwargs
 from cs285.infrastructure import pytorch_util as ptu
 
@@ -51,6 +51,10 @@ def main():
     parser.add_argument('--offline', action='store_true')
     parser.add_argument('--buffer_path', type=str, default=None)
 
+    # CQL
+    parser.add_argument('--cql', action='store_true')
+    parser.add_argument('--cql_alpha', type=float, default=0.2,help='Higher values indicated stronger OOD penalty.')
+
     # Data path formatting
     parser.add_argument('--no_weights_in_path', action='store_true')
 
@@ -66,6 +70,7 @@ def main():
         params['mdqn'] = True
 
     mdqn = params['mdqn']
+    cql = params['cql']
 
     ##################################
     # Create directory for logging
@@ -118,6 +123,10 @@ def main():
         assert len(pruning_folder_paths) == 1
         pruning_file_path = os.path.join(pruning_folder_paths[0], 'dqn_agent.pt')
         pruning_agent = LoadedParetoOptMDQNAgent(file_path=pruning_file_path, pruning_eps=params['pruning_eps'])
+    elif cql:
+        pruning_folder_paths = glob.glob(os.path.join(data_path, params['pruning_file_prefix'] + '*'))
+        pruning_file_paths = [os.path.join(f, 'dqn_agent.pt') for f in pruning_folder_paths]
+        pruning_agent = LoadedParetoOptCQLAgent(file_paths=pruning_file_paths, pruning_eps=params['pruning_eps'])
     else:
         pruning_folder_paths = glob.glob(os.path.join(data_path, params['pruning_file_prefix'] + '*'))
         pruning_file_paths = [os.path.join(f, 'dqn_agent.pt') for f in pruning_folder_paths]

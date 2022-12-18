@@ -8,7 +8,7 @@ sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', 
 
 from cs285.infrastructure.rl_trainer import RLTrainer
 from cs285.agents.dqn_agent import DQNAgent
-from cs285.agents.pareto_opt_agent import LoadedParetoOptDQNAgent, LoadedParetoOptMDQNAgent
+from cs285.agents.pareto_opt_agent import LoadedParetoOptDQNAgent, LoadedParetoOptMDQNAgent, LoadedParetoOptCQLAgent
 from cs285.infrastructure.dqn_utils import get_env_kwargs
 from cs285.infrastructure import pytorch_util as ptu
 
@@ -47,6 +47,10 @@ def main():
     parser.add_argument('--consistent_mdqn', action='store_true')
     parser.add_argument('--uniform_consistent_mdqn', action='store_true')
     parser.add_argument('--consistency_alpha', type=float, default=1, help='Look at MDQN in critics.')
+
+    # CQL
+    parser.add_argument('--cql', action='store_true')
+    parser.add_argument('--cql_alpha', type=float, default=0.2,help='Higher values indicated stronger OOD penalty.')
 
     # System
     parser.add_argument('--seed', type=int, default=1)
@@ -136,6 +140,9 @@ def main():
             assert len(pruning_folder_paths) == 1
             pruning_file_path = os.path.join(pruning_folder_paths[0], 'dqn_agent.pt')
             pruning_agent = LoadedParetoOptMDQNAgent(file_path=pruning_file_path, pruning_eps=params['pruning_eps'])
+        elif params['cql']:
+            pruning_file_paths = [os.path.join(f, 'dqn_agent.pt') for f in pruning_folder_paths]
+            pruning_agent = LoadedParetoOptCQLAgent(file_paths=pruning_file_paths, pruning_eps=params['pruning_eps'])
         else:
             pruning_file_paths = [os.path.join(f, 'dqn_agent.pt') for f in pruning_folder_paths]
             pruning_agent = LoadedParetoOptDQNAgent(file_paths=pruning_file_paths, pruning_eps=params['pruning_eps'])
