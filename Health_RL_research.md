@@ -1,7 +1,19 @@
 # Overview
 This file summarizes key results of my Health RL litereature review. Key focus will be around: Problem formulation? Use of MIMIC data? Set-up of toy problems? Existence of semi-synthetic experiments?
 
-## Random idea
+## Idea -- What could be the focus of this paper
+
+A. Show that pruning as pre-processing enables more effective learning of policies (Perspective of CS285 write-up)
+[Application: An improved RL-based Sepsis detection model]
+--> Evaluation could be inspired by Komorowski et al. (2018) to test whether th learned policy is better
+
+B. Use pruning to flag "bad" actions? 
+[Application: A physician alert system, potentially allowing them to avoid suboptimal treatment decisions]
+--> Evaluation could be inspired by Fatemi et al. (2021); show that pruned state-action pairs are associated with increased mortality. Analyze Q-values of trajectories of patients after "bad" action (potential split by survivors and non-survivors)
+--> Here the focus would be primarily on the pruning algorithm, since the idea is to build an algorithm that identifies (and thus allows to avoid) bad actions
+--> Potentially we could implement an evaluation on a Toy problem similar to LifeGate in Fatemi et al. (2021) where our pareto pruning step should be able to discard all the actions that go into the bad region.
+
+## Idea -- Hack to get less sparse death reward
 
 In our last call we had the question about how one could transform the sparse end-stage mortality reward into a intermediate measure. Here is one crude idea:
 
@@ -11,6 +23,10 @@ In our last call we had the question about how one could transform the sparse en
 3. Calculate reward: survival_reward * survival transition probability
 
 Do this procedure for each state. Potentially exclude states that appear less than X (e.g. 5 times).
+
+## Some technical ideas
+
+1. Consider aligning processing of MIMIC data with Fatemi et al. (2021) repo (the MIMIC sepsis processing repo of Microsoft Research)
 
 ## Fatemi et al. (2021) Medical Dead-ends and Learning to Identify High-risk States and Treatments
 Repo of the paper: https://github.com/microsoft/med-deadend
