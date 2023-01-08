@@ -84,6 +84,32 @@ Patient trajectory analysis:
 
 ### Overall take
 
-A lot of the analyses here focus on the value functions which their approach enables. In our scenario is the key output a list of dominated state action pairs. In that spirit, our work should further analyze these state-action pairs and for instance show whether they are indeed associated with worse outcomed when when they appear in the dataset. 
+A lot of the analyses here focus on the value functions which their approach enables. In our scenario the key output is a list of dominated state action pairs. In that spirit, our work should further analyze these state-action pairs and for instance show whether they are indeed associated with worse outcomes when when they appear in the dataset. 
 
 Some ideas could be: development in vital signs after bad state-action pairs, survival rate compared to other actions taken in that state, look at trajectories and potentially mutliple occurences of weak state-action pairs. 
+
+## Komorowski et al. (2018) AI Clinician
+
+--> Evaluation conducted here could serve as inspiration for to evaluate the model that we built on top of the pruned action space 
+--> Also it might be good to understand the performance reported in the paper better to compare it to our results, allowing us to test the validity of our implementation.
+
+### Problem fomulation
+Leverage policy-iteration to derive vasopressor and intravenous fluid recommendations for septic patients in the ICU.
+
+### Evaluation
+
+- Off-policy evaluation using weighted importance sampling, (something questionable: authors trained 500 different models using 500 different types of state clusters and showed that best model lower bound with these consistently surpassed 95% confidence upper bound of the AI policy)
+- Plot action return against mortality risk. However not as correlation coefficient but with mean mortality for different action return brackets.
+- Plot distribution of average policy return of survivors and non-survivors
+- plotted distribution of policy value (likely estimated using importance sampling)
+- Using bootstrapping with 2,000 resamplings, the median value of clinicians' policy and the AI policy were estimated at 56.9 (interquartile range, 54.7-58.8) and 84.5 (interquartile range, 84.3-87.7), respectively.
+- Plot recommended dosage vs. given
+- Compare return when AI policy and clinician decision match to the rest
+- Mortality in case of variation from AI policy
+
+### Deep-dive Importance sampling evaluation (page 7 of the paper)
+
+- Idea use data generated under pi_0 (clinician policy) to evaluate AI policy (pi_1)
+- Weighted importance sampling corrects for the discrepancy between pi_0 and pi_1
+- Make AI policy stochastic (take 99% of time AI action and 1% random action) so WID can be applied across all trajectories 
+- See formulas to apply importance weight (ration of policy suggestion of pi_o and pi_1) to evaluate trajectories
