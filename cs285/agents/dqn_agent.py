@@ -1,9 +1,8 @@
 import numpy as np
 
-from cs285.infrastructure.dqn_utils import MemoryOptimizedReplayBuffer, PiecewiseSchedule
+from cs285.infrastructure.dqn_utils import MemoryOptimizedReplayBuffer
 from cs285.agents.base_agent import BaseAgent
-from cs285.policies.argmax_policy import ArgMaxPolicy, PrunedArgMaxPolicy
-from cs285.policies.pareto_opt_policy import RandomParetoOptimalActionPolicy, UniformRandomParetoOptimalActionPolicy, ExtendedUniformRandomParetoOptimalActionPolicy
+from cs285.policies.argmax_policy import PrunedArgMaxPolicy
 from cs285.critics.dqn_critic import DQNCritic, PrunedDQNCritic, MDQNCritic, ExtendedMDQNCritic
 from cs285.critics.cql_critic import CQLCritic, PrunedCQLCritic
 
@@ -166,6 +165,7 @@ class LoadedDQNAgent(BaseAgent):
 
     def save(self, path):
         pass
+
 
 class LoadedCQLAgent(BaseAgent):
     def __init__(self, file_path, **kwargs):

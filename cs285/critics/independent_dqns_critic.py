@@ -41,7 +41,8 @@ class IDQNCritic(BaseCritic):
     def update(self, *args, **kwargs):
         pass
 
-class ParetoOptCQLCritic(BaseCritic):
+
+class ICQLCritic(BaseCritic):
     def __init__(self, dqn_critics=None, saved_dqn_critics_paths=None, **kwargs):
         super().__init__(**kwargs)
 
@@ -61,9 +62,6 @@ class ParetoOptCQLCritic(BaseCritic):
             dqn_critic.q_net.to(ptu.device)
             dqn_critic.q_net_target.to(ptu.device)
 
-    def update(self, ob_no, ac_na, next_ob_no, reward_n, terminal_n):
-        pass
-
     def qa_values(self, ob_no: np.ndarray):
         if ob_no.ndim < 2:
             ob_no = ob_no[np.newaxis, :]
@@ -71,3 +69,9 @@ class ParetoOptCQLCritic(BaseCritic):
         qa_values_nac: np.ndarray = np.stack([dqn_critic.qa_values(ob_no) for dqn_critic in self.dqn_critics], axis=-1)
 
         return qa_values_nac
+
+    def get_actor_class(self):
+        raise Exception('IDQN is not supposed to have an actor!')
+
+    def update(self, *args, **kwargs):
+        pass

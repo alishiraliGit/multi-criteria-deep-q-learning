@@ -3,10 +3,11 @@ import torch
 import torch.optim as optim
 from torch.nn import utils
 from torch import nn
-import pdb
 
 from cs285.infrastructure import pytorch_util as ptu
-from cs285.infrastructure.dqn_utils import get_maximizer_from_available_actions, gather_by_actions
+from cs285.infrastructure.dqn_utils import get_maximizer_from_available_actions
+import cs285.policies.argmax_policy as argmax_policy
+from cs285.pruners.base_pruner import BasePruner
 
 
 class CQLCritic(BaseCritic):
@@ -45,6 +46,9 @@ class CQLCritic(BaseCritic):
         self.q_net_target.to(ptu.device)
         self.cql_alpha = hparams['cql_alpha']
 
+    def get_actor_class(self):
+        return argmax_policy.ArgMaxPolicy
+
     def dqn_loss(self, ob_no, ac_na, next_ob_no, reward_n, terminal_n):
         qa_t_values = self.q_net(ob_no)
         q_t_values = torch.gather(qa_t_values, 1, ac_na.unsqueeze(1)).squeeze(1)
@@ -58,7 +62,6 @@ class CQLCritic(BaseCritic):
         loss = self.loss(q_t_values, target)
 
         return loss, qa_t_values, q_t_values
-
 
     def update(self, ob_no, ac_na, next_ob_no, reward_n, terminal_n):
         """
@@ -127,11 +130,11 @@ class CQLCritic(BaseCritic):
                 'q_net_target_state_dict': self.q_net_target.state_dict()
             }, save_path)
 
-    @staticmethod
-    def load(load_path):
+    @classmethod
+    def load(cls, load_path):
         checkpoint = torch.load(load_path)
 
-        cql_critic = CQLCritic(
+        cql_critic = cls(
             hparams=checkpoint['hparams'],
             optimizer_spec=checkpoint['optimizer_spec']
         )
@@ -146,9 +149,10 @@ class CQLCritic(BaseCritic):
 
         return cql_critic
 
+
 class PrunedCQLCritic(CQLCritic):
 
-    def __init__(self, hparams, optimizer_spec, action_pruner=None, **kwargs):
+    def __init__(self, hparams, optimizer_spec, action_pruner: BasePruner, **kwargs):
         super().__init__(hparams, optimizer_spec, **kwargs)
 
         # Pruning
@@ -182,10 +186,7 @@ class PrunedCQLCritic(CQLCritic):
         qa_tp1_target_values = self.q_net_target(next_ob_no)
 
         # Get the pruned action set
-        choose_from_pruned = False if self.action_pruner is None else True
-
-        if choose_from_pruned:
-            available_actions = self.action_pruner.get_actions(ptu.to_numpy(ob_no))
+        available_actions = self.action_pruner.get_list_of_available_actions(ptu.to_numpy(ob_no))
 
         if self.double_q:
             # In double Q-learning, the best action is selected using the Q-network that
@@ -194,16 +195,10 @@ class PrunedCQLCritic(CQLCritic):
 
             qa_tp1_values = self.q_net(next_ob_no)
 
-            if choose_from_pruned:
-                ac_tp1 = get_maximizer_from_available_actions(qa_tp1_values, available_actions)
-            else:
-                ac_tp1 = qa_tp1_values.argmax(dim=1)
+            ac_tp1 = get_maximizer_from_available_actions(qa_tp1_values, available_actions)
 
         else:
-            if choose_from_pruned:
-                ac_tp1 = get_maximizer_from_available_actions(qa_tp1_target_values, available_actions)
-            else:
-                ac_tp1 = qa_tp1_target_values.argmax(dim=1)
+            ac_tp1 = get_maximizer_from_available_actions(qa_tp1_target_values, available_actions)
 
         q_tp1 = torch.gather(qa_tp1_target_values, 1, ac_tp1.unsqueeze(1)).squeeze(1)
 
@@ -215,7 +210,7 @@ class PrunedCQLCritic(CQLCritic):
         assert q_t_values.shape == target.shape
         loss = self.loss(q_t_values, target)
 
-        #Here comes the CQL part
+        # Here comes the CQL part
         q_t_logsumexp = torch.logsumexp(qa_t_values, dim=1)
         cql_loss = torch.mean(q_t_logsumexp - q_t_values)
         loss = self.cql_alpha * cql_loss + loss
@@ -226,28 +221,10 @@ class PrunedCQLCritic(CQLCritic):
         self.optimizer.step()
         self.learning_rate_scheduler.step()
 
-        info = {
-            'Training Loss': ptu.to_numpy(loss),
-        }
+        info = {'Training Loss': ptu.to_numpy(loss)}
 
         info['CQL Loss'] = ptu.to_numpy(cql_loss)
         info['Data q-values'] = ptu.to_numpy(q_t_values).mean()
         info['OOD q-values'] = ptu.to_numpy(q_t_logsumexp).mean()
 
         return info
-
-    @staticmethod
-    def load(load_path):
-        checkpoint = torch.load(load_path)
-
-        cql_critic = PrunedCQLCritic(
-            hparams=checkpoint['hparams'],
-            optimizer_spec=checkpoint['optimizer_spec']
-        )
-
-        cql_critic.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-
-        cql_critic.q_net.load_state_dict(checkpoint['q_net_state_dict'])
-        cql_critic.q_net_target.load_state_dict(checkpoint['q_net_target_state_dict'])
-
-        return cql_critic

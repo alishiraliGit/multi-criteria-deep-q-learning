@@ -7,7 +7,7 @@ import argparse
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..'))
 
 from cs285.infrastructure.rl_trainer import RLTrainer
-from cs285.agents.pareto_opt_agent import LoadedParetoOptCQLAgent
+from cs285.pruners.cql_pruner import ICQLPruner
 from cs285.infrastructure.dqn_utils import get_env_kwargs
 from cs285.infrastructure import pytorch_util as ptu
 from cs285.agents.dqn_agent import DQNAgent
@@ -61,7 +61,7 @@ def main():
 
     # CQL
     parser.add_argument('--cql', action='store_true')
-    parser.add_argument('--cql_alpha', type=float, default=0.2,help='Higher values indicated stronger OOD penalty.')
+    parser.add_argument('--cql_alpha', type=float, default=0.2, help='Higher values indicated stronger OOD penalty.')
 
     # System
     parser.add_argument('--seed', type=int, default=1)
@@ -167,8 +167,7 @@ def main():
 
         elif params['cql']:
             pruning_file_paths = [os.path.join(f, 'dqn_agent.pt') for f in pruning_folder_paths]
-            pruning_agent = LoadedParetoOptCQLAgent(file_paths=pruning_file_paths, pruning_eps=params['pruning_eps'])
-            pruner = pruning_agent.actor
+            pruner = ICQLPruner(file_paths=pruning_file_paths, pruning_eps=params['pruning_eps'])
 
         params['action_pruner'] = pruner
 
