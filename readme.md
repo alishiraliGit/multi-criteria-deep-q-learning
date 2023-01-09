@@ -2,11 +2,12 @@
 I recommend creating a new virtual environment for this project and
 install the requirements directly from [requirements.txt](requirements.txt).
 
-## Training
+## Environment specification
+Currently, only LunarLander for online setting and MIMIC-III for offline setting are available. 
 
 ### Customized rewards
-You can run DQN on LunarLander with customized rewards by specifying
-reward weights in the `--env_rew_weights` argument:
+You can run DQN on LunarLander with customized rewards by choosing `LunarLander-Customizable`
+for the `env_name` and specifying reward weights in the `env_rew_weights` argument:
 ```shell
 python cs285/scripts/run_dqn.py \
 --exp_name xxx \
@@ -19,7 +20,7 @@ intermediate rewards, and the last value corresponds to the final reward.
 Values can be float type.
 
 You might want to choose a distinguishing `exp_name` 
-since it is how a [PrunedDQN](cs285/critics/dqn_critic.py) finds previously saved runs.
+since it is how different modules find previously saved runs.
 
 ### Default rewards
 To run DQN with default rewards, you just need to set `env_rew_weights` to all one:
@@ -46,48 +47,192 @@ python cs285/scripts/run_dqn.py \
 I recommend using postfix `_sparse` for `exp_name` 
 when you run on an environment with default rewards.
 
-### PrunedDQN
-To run DQN with pruned actions, you need to specify the `pruning_file_prefix` argument and
-optionally `pruning_eps` argument (default=0). The larger `pruning_eps`, the smaller will be the size of Pareto optimal sets 
-(look at [ParetoOptimalPolicy](cs285/policies/pareto_opt_policy.py)). 
-The program will automatically look in the [data](data) folder for all saved runs with
-this prefix and load their critics. 
-The loaded critics will be used in [ParetoOptimalAgent](cs285/agents/pareto_opt_agent.py)
+### Vector rewards
+Some algorithms require access to the vector of rewards. For LunarLander, set `env_name` to `LunarLander-MultiReward`
+and `LunarLander-MultiInterReward` to get all or intermediate rewards vector from the environment.
+
+### Offline env
+TODO
+
+## Training (phase 1)
+
+### IndependentDQN
+To run IndependentDQN, you should first run a couple of DQNs with a unique prefix in `exp_name`.
+`run_dqn` by default trains a DQN as mentioned above. 
+Look at [run_dqn.py](cs285/scripts/run_dqn.py) for further available options.
+
+### MDQN
+Three types of MDQN are available. All types require an environment with vector reward.
+#### OptimisticMDQN
+Set `optimistic_mdqn` with optional parameter `w_bound` (default=0.5). 
+OptimisticMDQN uses [LinearlyWeightedArgMaxPolicy](cs285/policies/linearly_weighted_argmax_policy.py)
+where weights will be drawn from unif(1, 1 + w_bound)
+```shell
+python cs285/scripts/run_dqn.py \
+--exp_name xxx_omdqn \
+--env_name LunarLander-MultiInterReward \
+--optimistic_mdqn \
+--w_bound y \
+--double_q --seed 1
+```
+#### DiverseMDQN
+Set `diverse_mdqn` with additional optional parameter `w_bound` similar to OptimisticMDQN. 
+```shell
+python cs285/scripts/run_dqn.py \
+--exp_name xxx_dmdqn \
+--env_name LunarLander-MultiInterReward \
+--diverse_mdqn \
+--w_bound y \
+--double_q --seed 1
+```
+#### ConsistentMDQN
+Set `consistent_mdqn` with two additional optional parameters `w_bound` and `consistency_alpha` (default=0, to be non-negative).
+ConsistentMDQN uses [LinearlyWeightedSoftmaxPolicy](cs285/policies/linearly_weighted_argmax_policy.py)
+where $\alpha$ determines the hardness of softmax. 
+```shell
+python cs285/scripts/run_dqn.py \
+--exp_name xxx_cmdqn \
+--env_name LunarLander-MultiInterReward \
+--consistent_mdqn \
+--w_bound y \
+--consistency_alpha z \
+--double_q --seed 1
+```
+
+### ExtendedMDQN
+Tow types of EMDQN is available. Both type require an environment with vector reward.
+#### DiverseEMDQN
+Set `diverse_emdqn` with two parameters `ex_dim` (positive integer, default=1) and `w_bound` (optional). 
+`ex_dim` is the dimension of the new axis added to Q function. So, Q function is (ac_dim x re_dim x ex_dim) dimensional in EMDQN.
+```shell
+python cs285/scripts/run_dqn.py \
+--exp_name xxx_demdqn \
+--env_name LunarLander-MultiInterReward \
+--diverse_emdqn \
+--ex_dim e \
+--w_bound y \
+--double_q --seed 1
+```
+#### ConsistentEMDQN
+Set `consistent_emdqn` with three parameters `ex_dim`, `w_bound`, and `consistency_alpha`.
+```shell
+cs285/scripts/run_dqn.py \
+--exp_name xxx_cemdqn \
+--env_name LunarLander-MultiInterReward \
+--consistent_emdqn \
+--ex_dim e \
+--w_bound y \
+--consistency_alpha z \
+--double_q --seed 1
+```
+
+
+## Training (phase 2)
+
+### IndependentDQN
+To run IndependentDQN, set `prune_with_idqn`. You should have already run a couple of DQNs and 
+specify their unique prefix as `pruning_file_prefix` argument.
+Optionally you can use the `pruning_eps` argument (default=0).
+- The program will automatically look in the [data](data) folder for all saved runs with
+this prefix and load their critics. The loaded critics will be used in [IDQNPruner](cs285/pruners/independent_dqns_pruner.py)
 to prune actions at each state. 
+- `pruning_eps` determines how strict is Pareto optimality criterion. 
+The larger $\epsilon$, the smaller will be the size of Pareto optimal sets 
+(look at [ParetoOptimalPruner](cs285/pruners/primary_pruner.py)).
 
 For example, in LunarLander with sparse rewards:
 ```shell
 python cs285/scripts/run_dqn.py \
---exp_name xxx_pruned_sparse \
+--exp_name xxx_pruned_idqn_sparse \
 --env_name LunarLander-Customizable \
---pruning_file_prefix xxx_LunarLander-Customizable \
---pruning_eps yyy \
 --env_rew_weights 0 0 0 0 1 \
+--prune_with_idqn \
+--pruning_file_prefix yyy \
+--pruning_eps z \
 --double_q --seed 1
 ```
-I recommend using postfix `_pruned` for `exp_name` 
-when you run PrunedDQN.
 
+### MDQN
+To run DQN with action sets pruned by MDQN, regardless of type of the MDQN, set `prune_with_mdqn`
+and give the trained MDQN's unique file prefix as the `pruning_file_prefix` argument. 
+You can optionally set `pruning_n_draw` with a positive integer. 
+[MDQNPruner](cs285/pruners/dqn_pruner.py) draws different weightings `pruning_n_draw` times and
+returns actions which are optimal for at least one of the realized weighting.
+```shell
+python cs285/scripts/run_dqn.py \
+--exp_name xxx_pruned_cmdqn_sparse \
+--env_name LunarLander-Customizable \
+--env_rew_weights 0 0 0 0 1 \
+--prune_with_mdqn \
+--pruning_file_prefix yyy \
+--pruning_n_draw n \
+--double_q --seed 1
+```
+
+### ExtendedMDQN
+To run DQN with action sets pruned by EMDQN, regardless of type of the EMDQN, set `prune_with_emdqn`
+and give the trained EMDQN's unique file prefix as the `pruning_file_prefix` argument.
+```shell
+python cs285/scripts/run_dqn.py \
+--exp_name xxx_pruned_cemdqn_sparse \
+--env_name LunarLander-Customizable \
+--env_rew_weights 0 0 0 0 1 \
+--prune_with_emdqn \
+--pruning_file_prefix yyy \
+--pruning_n_draw n \
+--double_q --seed 1
+```
 
 ## Evaluation
-To extract pruned action sets in trajectories of an optimal agent, run:
+`run_eval_pruning` extracts pruned action sets in trajectories of an optimal agent. 
+Folder [figs](figs) has sample evaluation outputs for the sample data.
+In the following there are sample commands for different methods.
+
+### IndependentDQN
 ```shell
-python cs285/scripts/run_eval_pareto_opt_dqn.py \
---exp_name xxx_eval \
+python cs285/scripts/run_eval_pruning.py \
+--exp_name xxx_idqn_eval \
 --env_name LunarLander-Customizable \
---pruning_file_prefix xxx_LunarLander-Customizable \
---pruning_eps yyy \
---opt_file_prefix xxx_opt_LunarLander-Customizable \
 --env_rew_weights 0 0 0 0 1 \
+--opt_file_prefix yyy \
+--prune_with_idqn \
+--pruning_file_prefix zzz \
+--pruning_eps w \
 --seed 1
 ```
-Folder [figs](figs) has sample evaluation outputs for the sample data.
+
+### MDQN
+```shell
+python cs285/scripts/run_eval_pruning.py \
+--exp_name xxx_cmdqn_eval \
+--env_name LunarLander-Customizable \
+--env_rew_weights 0 0 0 0 1 \
+--opt_file_prefix yyy \
+--prune_with_mdqn \
+--pruning_file_prefix zzz \
+--pruning_n_draw n \
+--seed 1
+```
+
+### ExtendedMDQN
+```shell
+python cs285/scripts/run_eval_pruning.py \
+--exp_name xxx_cemdqn_eval \
+--env_name LunarLander-Customizable \
+--env_rew_weights 0 0 0 0 1 \
+--opt_file_prefix yyy \
+--prune_with_emdqn \
+--pruning_file_prefix zzz \
+--pruning_n_draw n \
+--seed 1
+```
+
 
 ## Post-process and visualization
 Use [post_process_training_logs](cs285/scripts/post_process_training_logs.py) to visualize training logs.
 
-Use [post_process_eval_pareto_opt_dqn](cs285/scripts/post_process_eval_pareto_opt_dqn.py)
-to read the results of Pareto optimality evaluation.
+Use [post_process_eval_pareto_opt_dqn](cs285/scripts/post_process_eval_pruning.py)
+to read the results of pruning evaluation.
 
 ## Sample data
 Folder [data](data) has some sample runs with `exp_name=p4`. 
@@ -142,7 +287,7 @@ python cs285/scripts/run_dqn.py --exp_name off_pDQN{eps} --env_name MIMIC --prun
 ### To run Pruned DQN Evaluation
 
 ```shell
-python cs285/scripts/run_eval_pareto_opt_dqn.py \
+python cs285/scripts/run_eval_pruning.py \
 --exp_name pDQNvdl30_eval \
 --env_name MIMIC \
 --pruning_file_prefix MIMICvdl_ \

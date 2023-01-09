@@ -1,53 +1,46 @@
 import numpy as np
 
+from cs285.policies.base_policy import BasePolicy
+from cs285.pruners.base_pruner import BasePruner
 from cs285.infrastructure.dqn_utils import get_maximizer_from_available_actions_np
 
 
-class ArgMaxPolicy:
+class ArgMaxPolicy(BasePolicy):
     def __init__(self, critic):
         self.critic = critic
 
-    def get_action(self, obs):
-        if len(obs.shape) > 3:
-            observation = obs
-        else:
-            observation = obs[None]
-        
-        # Return the action that maximizes the Q-value at the current observation as the output
-        qa_values: np.ndarray = self.critic.qa_values(observation)
-        ac = qa_values.argmax(axis=1)
+    def get_actions(self, ob_no: np.ndarray) -> np.ndarray:
+        if ob_no.ndim < 2:
+            ob_no = ob_no[np.newaxis, :]
 
-        if len(ac.shape) > 1:
-            ac = ac.squeeze()
-        return ac
+        qa_values_na: np.ndarray = self.critic.qa_values(ob_no)
+
+        ac_n = qa_values_na.argmax(axis=1)
+
+        return ac_n
+
+    def update(self, *args, **kwargs):
+        pass
 
 
-class PrunedArgMaxPolicy:
-    def __init__(self, critic, action_pruner=None):
+class PrunedArgMaxPolicy(BasePolicy):
+    def __init__(self, critic, action_pruner: BasePruner):
         self.critic = critic
 
         # Pruning
         self.action_pruner = action_pruner
 
-    def get_action(self, obs: np.ndarray):
-        if obs.ndim < 2:
-            obs = obs[np.newaxis, :]
+    def get_actions(self, ob_no: np.ndarray) -> np.ndarray:
+        if ob_no.ndim < 2:
+            ob_no = ob_no[np.newaxis, :]
 
-        qa_values: np.ndarray = self.critic.qa_values(obs)
+        qa_values_na: np.ndarray = self.critic.qa_values(ob_no)
 
-        choose_from_pruned = False if self.action_pruner is None else True
+        available_acs_n = self.action_pruner.get_list_of_available_actions(ob_no)
 
-        # TODO
-        choose_from_pruned = False if np.random.random() < 0.0 else choose_from_pruned
+        ac_n = get_maximizer_from_available_actions_np(qa_values_na, available_acs_n)
 
-        if choose_from_pruned:
-            available_actions = self.action_pruner.get_actions(obs)
+        return ac_n
 
-            ac = get_maximizer_from_available_actions_np(qa_values, available_actions)
-
-        else:
-            ac = qa_values.argmax(axis=1)
-
-        if ac.ndim > 1:
-            ac = ac.squeeze()
-        return ac
+    def update(self, *args, **kwargs):
+        pass
