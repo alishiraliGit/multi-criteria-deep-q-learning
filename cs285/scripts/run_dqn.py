@@ -7,11 +7,11 @@ import argparse
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..'))
 
 from cs285.infrastructure.rl_trainer import RLTrainer
-from cs285.agents.dqn_agent import DQNAgent
-from cs285.agents.pareto_opt_agent import LoadedParetoOptDQNAgent, LoadedParetoOptMDQNAgent,\
-    LoadedParetoOptExtendedMDQNAgent
 from cs285.infrastructure.dqn_utils import get_env_kwargs
 from cs285.infrastructure import pytorch_util as ptu
+from cs285.agents.dqn_agent import DQNAgent
+from cs285.pruners.independent_dqns_pruner import IDQNPruner
+from cs285.pruners.dqn_pruner import MDQNPruner, ExtendedMDQNPruner
 
 
 def main():
@@ -38,10 +38,12 @@ def main():
     parser.add_argument('--double_q', action='store_true')
 
     # Pruning
-    parser.add_argument('--pruning_file_prefix', type=str, default=None, help='For PrunedDQN only.')
+    parser.add_argument('--pruning_file_prefix', type=str, default=None)
+    parser.add_argument('--prune_with_idqn', action='store_true')
     parser.add_argument('--prune_with_mdqn', action='store_true')
     parser.add_argument('--prune_with_emdqn', action='store_true')
-    parser.add_argument('--pruning_eps', type=float, default=0., help='Look at pareto_opt_policy.')
+    parser.add_argument('--pruning_eps', type=float, default=0., help='Look at pareto_opt_pruner.')
+    parser.add_argument('--pruning_n_draw', type=int, default=20, help='Look at random_pruner.')
 
     # MDQN
     parser.add_argument('--optimistic_mdqn', action='store_true')
@@ -53,8 +55,8 @@ def main():
     parser.add_argument('--consistent_emdqn', action='store_true')
     parser.add_argument('--ex_dim', type=int, default=1)
 
-    parser.add_argument('--consistency_alpha', type=float, default=1, help='Look at MDQN in critics.')
-    parser.add_argument('--w_bound', type=float, default=0.5)
+    parser.add_argument('--consistency_alpha', type=float, default=1, help='Look at MDQN in dqn_critic.')
+    parser.add_argument('--w_bound', type=float, default=0.5, help='Look at draw_w in linearly_weighted_argmax_policy.')
 
     # System
     parser.add_argument('--seed', type=int, default=1)
@@ -82,23 +84,28 @@ def main():
 
     # Decision booleans
     customize_rew = False if params['env_rew_weights'] is None else True
-    prune = False if params['pruning_file_prefix'] is None else True
 
     if params['offline'] and params['buffer_path'] is None:
-        raise Exception('Please provide a buffer_path to enable offline learning')
+        raise Exception('Please provide a buffer_path to enable offline learning.')
 
-    if params['optimistic_mdqn'] or params['diverse_mdqn'] or params['consistent_mdqn']:
-        params['mdqn'] = True
-    else:
-        params['mdqn'] = False
+    params['mdqn'] = params['optimistic_mdqn'] or params['diverse_mdqn'] or params['consistent_mdqn']
 
-    if params['diverse_emdqn'] or params['consistent_emdqn']:
-        params['emdqn'] = True
-    else:
-        params['emdqn'] = False
+    params['emdqn'] = params['diverse_emdqn'] or params['consistent_emdqn']
 
+    prune_with_idqn = params['prune_with_idqn']
     prune_with_mdqn = params['prune_with_mdqn']
     prune_with_emdqn = params['prune_with_emdqn']
+
+    params['prune'] = prune_with_idqn or prune_with_mdqn or prune_with_emdqn
+
+    ##################################
+    # Set system variables
+    ##################################
+    # Set device
+    ptu.init_gpu(
+        use_gpu=not params['no_gpu'],
+        gpu_id=params['which_gpu']
+    )
 
     ##################################
     # Create directory for logging
@@ -108,14 +115,10 @@ def main():
     if not (os.path.exists(data_path)):
         os.makedirs(data_path)
 
-    if customize_rew:
-        if params['no_weights_in_path']:
-            logdir = args.exp_name + '_' + args.env_name \
-                    + '_' + time.strftime('%d-%m-%Y_%H-%M-%S')
-        else:
-            logdir = args.exp_name + '_' + args.env_name \
-                    + '-'.join([str(w) for w in params['env_rew_weights']]) \
-                    + '_' + time.strftime('%d-%m-%Y_%H-%M-%S')
+    if customize_rew and not params['no_weights_in_path']:
+        logdir = args.exp_name + '_' + args.env_name \
+                + '-'.join([str(w) for w in params['env_rew_weights']]) \
+                + '_' + time.strftime('%d-%m-%Y_%H-%M-%S')
     else:
         logdir = args.exp_name + '_' + args.env_name + '_' + time.strftime('%d-%m-%Y_%H-%M-%S')
 
@@ -139,29 +142,25 @@ def main():
     ##################################
     # Pruning (if requested)
     ##################################
-
-    ptu.init_gpu(
-            use_gpu=not params['no_gpu'],
-            gpu_id=params['which_gpu']
-        )
-    
-    if prune:
+    if params['prune']:
+        pruner = None
         pruning_folder_paths = glob.glob(os.path.join(data_path, params['pruning_file_prefix'] + '*'))
 
-        if prune_with_mdqn or prune_with_emdqn:
+        if prune_with_idqn:
+            pruning_file_paths = [os.path.join(f, 'dqn_agent.pt') for f in pruning_folder_paths]
+            pruner = IDQNPruner(pruning_eps=params['pruning_eps'], saved_dqn_critics_paths=pruning_file_paths)
+
+        elif prune_with_mdqn:
             assert len(pruning_folder_paths) == 1
             pruning_file_path = os.path.join(pruning_folder_paths[0], 'dqn_agent.pt')
-            if prune_with_mdqn:
-                pruning_agent = LoadedParetoOptMDQNAgent(file_path=pruning_file_path,
-                                                         pruning_eps=params['pruning_eps'])
-            else:
-                pruning_agent = LoadedParetoOptExtendedMDQNAgent(file_path=pruning_file_path,
-                                                                 pruning_eps=params['pruning_eps'])
-        else:
-            pruning_file_paths = [os.path.join(f, 'dqn_agent.pt') for f in pruning_folder_paths]
-            pruning_agent = LoadedParetoOptDQNAgent(file_paths=pruning_file_paths, pruning_eps=params['pruning_eps'])
+            pruner = MDQNPruner(n_draw=params['pruning_n_draw'], file_path=pruning_file_path)
 
-        params['action_pruner'] = pruning_agent.actor
+        elif prune_with_emdqn:
+            assert len(pruning_folder_paths) == 1
+            pruning_file_path = os.path.join(pruning_folder_paths[0], 'dqn_agent.pt')
+            pruner = ExtendedMDQNPruner(n_draw=params['pruning_n_draw'], file_path=pruning_file_path)
+
+        params['action_pruner'] = pruner
 
     ##################################
     # Run Q-learning

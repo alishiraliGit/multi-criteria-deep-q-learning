@@ -1,10 +1,8 @@
 import numpy as np
 
-from cs285.infrastructure.dqn_utils import MemoryOptimizedReplayBuffer, PiecewiseSchedule
+from cs285.infrastructure.dqn_utils import MemoryOptimizedReplayBuffer
 from cs285.agents.base_agent import BaseAgent
 from cs285.policies.argmax_policy import ArgMaxPolicy, PrunedArgMaxPolicy
-from cs285.policies.pareto_opt_policy import RandomParetoOptimalActionPolicy, UniformRandomParetoOptimalActionPolicy,\
-    ExtendedUniformRandomParetoOptimalActionPolicy
 from cs285.critics.dqn_critic import DQNCritic, PrunedDQNCritic, MDQNCritic, ExtendedMDQNCritic
 
 
@@ -45,15 +43,12 @@ class DQNAgent(object):
         else:
             if self.mdqn:
                 self.critic = MDQNCritic(agent_params, self.optimizer_spec)
-                self.actor = UniformRandomParetoOptimalActionPolicy(self.critic, b=agent_params['w_bound'])
-
             elif self.emdqn:
                 self.critic = ExtendedMDQNCritic(agent_params, self.optimizer_spec)
-                self.actor = ExtendedUniformRandomParetoOptimalActionPolicy(self.critic, b=agent_params['w_bound'])
-
             else:
                 self.critic = DQNCritic(agent_params, self.optimizer_spec)
-                self.actor = ArgMaxPolicy(self.critic)
+
+            self.actor = self.critic.get_actor_class()(self.critic)
 
         # Replay buffer
         lander = agent_params['env_name'].startswith('LunarLander')
@@ -98,7 +93,7 @@ class DQNAgent(object):
             # 'frame_history_len' observations using functionality from the replay buffer,
             # and then use those observations as input to your actor. 
             frames = self.replay_buffer.encode_recent_observation()
-            action = self.actor.get_action(frames)[0]
+            action = self.actor.get_action(frames)
         
         # Take a step in the environment using the action from the policy
         if self.mdqn or self.emdqn:
@@ -149,7 +144,7 @@ class LoadedDQNAgent(BaseAgent):
         super().__init__(**kwargs)
 
         self.critic = DQNCritic.load(file_path)
-        self.actor = ArgMaxPolicy(self.critic)
+        self.actor = self.critic.get_actor_class()(self.critic)
 
     def train(self) -> dict:
         pass

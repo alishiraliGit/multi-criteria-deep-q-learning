@@ -1,18 +1,18 @@
 import pickle
 import os
-from cs285.infrastructure.atari_wrappers import ReturnWrapper
 
-import gym
-from gym import wrappers
 import numpy as np
 import torch
-from cs285.infrastructure import pytorch_util as ptu
+import gym
+from gym import wrappers
+from tqdm import tqdm
+from sklearn.model_selection import train_test_split
+
+from cs285.infrastructure.atari_wrappers import ReturnWrapper
 from cs285.infrastructure import utils
 from cs285.infrastructure.dqn_utils import register_custom_envs
+from cs285.pruners.base_pruner import BasePruner
 
-from tqdm import tqdm
-
-from sklearn.model_selection import train_test_split
 
 class RLEvaluator(object):
 
@@ -30,10 +30,6 @@ class RLEvaluator(object):
         seed = self.params['seed']
         np.random.seed(seed)
         torch.manual_seed(seed)
-        #ptu.init_gpu(
-        #    use_gpu=not self.params['no_gpu'],
-        #    gpu_id=self.params['which_gpu']
-        #)
 
         # To be set later in run_training_loop
         self.total_envsteps = None
@@ -88,12 +84,12 @@ class RLEvaluator(object):
             self.params['agent_params']['ac_dim'] = ac_dim
             self.params['agent_params']['ob_dim'] = ob_dim
 
-    def run_evaluation_loop(self, n_iter, collect_policy, eval_policy, buffer_path):
+    def run_evaluation_loop(self, n_iter, opt_policy, eval_pruner: BasePruner, buffer_path):
         # TODO: Hard-coded
         print_period = 1
 
         opt_actions = []
-        pareto_opt_actions = []
+        pruned_actions = []
 
         if buffer_path is not None:
             # Load replay buffer data
@@ -111,22 +107,22 @@ class RLEvaluator(object):
                 print("\n\n********** Iteration %i ************" % itr)
 
             # Collect trajectories
-            if buffer_path == None:
+            if buffer_path is None:
                 paths, envsteps_this_batch = utils.sample_trajectories(
                     self.env,
-                    collect_policy,
+                    opt_policy,
                     min_timesteps_per_batch=self.params['batch_size'],
                     max_path_length=self.params['ep_len'],
                     render=False
                 )
 
-            # get optimal actions and pareto_opt_actions
+            # Get optimal actions and pruned_actions
             for path in tqdm(paths):
                 opt_actions.append(path['action'].astype(int).tolist())
-                pareto_opt_actions.append([eval_policy.get_action(ob) for ob in path['observation']])
+                pruned_actions.append(eval_pruner.get_list_of_available_actions(path['observation']))
 
         # Log/save
         with open(os.path.join(self.log_dir, 'actions.pkl'), 'wb') as f:
-            pickle.dump({'opt_actions': opt_actions, 'pareto_opt_actions': pareto_opt_actions}, f)
+            pickle.dump({'opt_actions': opt_actions, 'pruned_actions': pruned_actions}, f)
 
-        return opt_actions, pareto_opt_actions
+        return opt_actions, pruned_actions

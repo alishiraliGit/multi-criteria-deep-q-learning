@@ -2,7 +2,7 @@ import shlex, subprocess
 
 
 command_stem = [
-"python cs285/scripts/run_eval_pareto_opt_dqn.py --exp_name pDQNvdl{eps}_eval --env_name MIMIC --pruning_file_prefix MIMICvdl_ --pruning_eps {e} --env_rew_weights 1 0 0 0 0 0 0 0 0 0 0 --seed 1 --offline --no_weights_in_path --buffer_path './Replay_buffer_extraction/Encoded_paths3_all_rewards.pkl'"
+"python cs285/scripts/run_eval_pruning.py --exp_name pDQNvdl{eps}_eval --env_name MIMIC --pruning_file_prefix MIMICvdl_ --pruning_eps {e} --env_rew_weights 1 0 0 0 0 0 0 0 0 0 0 --seed 1 --offline --no_weights_in_path --buffer_path './Replay_buffer_extraction/Encoded_paths3_all_rewards.pkl'"
 ]
 
 eps_list = [0,0.05,0.1,0.2,0.3]

@@ -37,10 +37,6 @@ class RLTrainer(object):
         seed = self.params['seed']
         np.random.seed(seed)
         torch.manual_seed(seed)
-        #ptu.init_gpu(
-        #    use_gpu=not self.params['no_gpu'],
-        #    gpu_id=self.params['which_gpu']
-        #)
 
         # To be set later in run_training_loop
         self.total_envsteps = None
@@ -346,7 +342,7 @@ class RLTrainer(object):
         last_log = all_logs[-1]
 
         episode_rewards = self.env.get_episode_rewards()
-        print(episode_rewards)
+
         if len(episode_rewards) > 0:
             self.mean_episode_reward = np.mean(episode_rewards[-100:])
         if len(episode_rewards) > 100:

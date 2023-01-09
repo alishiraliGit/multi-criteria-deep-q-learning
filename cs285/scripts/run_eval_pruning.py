@@ -7,11 +7,11 @@ import argparse
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..'))
 
 from cs285.infrastructure.rl_evaluator import RLEvaluator
-from cs285.agents.dqn_agent import LoadedDQNAgent
-from cs285.agents.pareto_opt_agent import LoadedParetoOptDQNAgent, LoadedParetoOptMDQNAgent, \
-    LoadedParetoOptExtendedMDQNAgent
 from cs285.infrastructure.dqn_utils import get_env_kwargs
 from cs285.infrastructure import pytorch_util as ptu
+from cs285.agents.dqn_agent import LoadedDQNAgent
+from cs285.pruners.independent_dqns_pruner import IDQNPruner
+from cs285.pruners.dqn_pruner import MDQNPruner, ExtendedMDQNPruner
 
 
 def main():
@@ -30,25 +30,23 @@ def main():
     parser.add_argument('--batch_size', type=int, default=1000)
     parser.add_argument('--num_traj', type=int, default=100)
 
-    # Path to saved models
-    parser.add_argument('--pruning_file_prefix', type=str, required=True)
-    parser.add_argument('--opt_file_prefix', type=str) #This is only required for the gym-based evaluation
+    # Path to optimal agent
+    parser.add_argument('--opt_file_prefix', type=str)  # This is only required for the gym-based evaluation
 
     # Pruning
-    parser.add_argument('--pruning_eps', type=float, default=0., help='Look at pareto_opt_policy.')
-
-    # MDQN
-    parser.add_argument('--mdqn', action='store_true')
-
-    # EMDQN
-    parser.add_argument('--emdqn', action='store_true')
+    parser.add_argument('--pruning_file_prefix', type=str, default=None)
+    parser.add_argument('--prune_with_idqn', action='store_true')
+    parser.add_argument('--prune_with_mdqn', action='store_true')
+    parser.add_argument('--prune_with_emdqn', action='store_true')
+    parser.add_argument('--pruning_eps', type=float, default=0., help='Look at pareto_opt_pruner.')
+    parser.add_argument('--pruning_n_draw', type=int, default=20, help='Look at random_pruner.')
 
     # System
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--no_gpu', action='store_true')
     parser.add_argument('--which_gpu', '-gpu_id', default=0)
 
-    #offline RL?
+    # Offline RL?
     parser.add_argument('--offline', action='store_true')
     parser.add_argument('--buffer_path', type=str, default=None)
 
@@ -63,8 +61,19 @@ def main():
     # Decision booleans
     customize_rew = False if params['env_rew_weights'] is None else True
 
-    mdqn = params['mdqn']
-    emdqn = params['emdqn']
+    prune_with_idqn = params['prune_with_idqn']
+    prune_with_mdqn = params['prune_with_mdqn']
+    prune_with_emdqn = params['prune_with_emdqn']
+    assert sum([prune_with_idqn, prune_with_mdqn, prune_with_emdqn]) == 1
+
+    ##################################
+    # Set system variables
+    ##################################
+    # Set device
+    ptu.init_gpu(
+        use_gpu=not params['no_gpu'],
+        gpu_id=params['which_gpu']
+    )
 
     ##################################
     # Create directory for logging
@@ -74,14 +83,10 @@ def main():
     if not (os.path.exists(data_path)):
         os.makedirs(data_path)
 
-    if customize_rew:
-        if params['no_weights_in_path']:
-            logdir = args.exp_name + '_' + args.env_name \
-                    + '_' + time.strftime('%d-%m-%Y_%H-%M-%S')
-        else:
-            logdir = args.exp_name + '_' + args.env_name \
-                    + '-'.join([str(w) for w in params['env_rew_weights']]) \
-                    + '_' + time.strftime('%d-%m-%Y_%H-%M-%S')
+    if customize_rew and not params['no_weights_in_path']:
+        logdir = args.exp_name + '_' + args.env_name \
+                 + '-'.join([str(w) for w in params['env_rew_weights']]) \
+                 + '_' + time.strftime('%d-%m-%Y_%H-%M-%S')
     else:
         logdir = args.exp_name + '_' + args.env_name + '_' + time.strftime('%d-%m-%Y_%H-%M-%S')
 
@@ -95,7 +100,7 @@ def main():
     ##################################
     # Get env specific arguments
     ##################################
-    env_args = get_env_kwargs(params['env_name']) #we have a MIMIC environment for offline RL
+    env_args = get_env_kwargs(params['env_name'])  # We have a MIMIC environment for offline RL
 
     for k, v in env_args.items():
         # Don't overwrite the input arguments
@@ -105,34 +110,31 @@ def main():
     ##################################
     # Load saved models
     ##################################
-    # set device
-    ptu.init_gpu(
-        use_gpu=not params['no_gpu'],
-        gpu_id=params['which_gpu']
-    )
+    pruner = None
+    pruning_folder_paths = glob.glob(os.path.join(data_path, params['pruning_file_prefix'] + '*'))
 
-    if mdqn or emdqn:
-        if mdqn:
-            pruning_folder_paths = glob.glob(os.path.join(data_path, params['pruning_file_prefix'] + '*'))
-            assert len(pruning_folder_paths) == 1
-            pruning_file_path = os.path.join(pruning_folder_paths[0], 'dqn_agent.pt')
-            if mdqn:
-                pruning_agent = LoadedParetoOptMDQNAgent(file_path=pruning_file_path,
-                                                         pruning_eps=params['pruning_eps'])
-            else:
-                pruning_agent = LoadedParetoOptExtendedMDQNAgent(file_path=pruning_file_path,
-                                                             pruning_eps=params['pruning_eps'])
-
-    else:
-        pruning_folder_paths = glob.glob(os.path.join(data_path, params['pruning_file_prefix'] + '*'))
+    if prune_with_idqn:
         pruning_file_paths = [os.path.join(f, 'dqn_agent.pt') for f in pruning_folder_paths]
-        pruning_agent = LoadedParetoOptDQNAgent(file_paths=pruning_file_paths, pruning_eps=params['pruning_eps'])
+        pruner = IDQNPruner(pruning_eps=params['pruning_eps'], saved_dqn_critics_paths=pruning_file_paths)
 
-    #Lets skip this for offline RL
-    if not params['offline']:
+    elif prune_with_mdqn:
+        assert len(pruning_folder_paths) == 1
+        pruning_file_path = os.path.join(pruning_folder_paths[0], 'dqn_agent.pt')
+        pruner = MDQNPruner(n_draw=params['pruning_n_draw'], file_path=pruning_file_path)
+
+    elif prune_with_emdqn:
+        assert len(pruning_folder_paths) == 1
+        pruning_file_path = os.path.join(pruning_folder_paths[0], 'dqn_agent.pt')
+        pruner = ExtendedMDQNPruner(n_draw=params['pruning_n_draw'], file_path=pruning_file_path)
+
+    # Skip this for offline RL
+    if params['offline']:
+        opt_actor = None
+    else:
         opt_folder_path = glob.glob(os.path.join(data_path, params['opt_file_prefix'] + '*'))[0]
         opt_file_path = os.path.join(opt_folder_path, 'dqn_agent.pt')
         opt_agent = LoadedDQNAgent(file_path=opt_file_path)
+        opt_actor = opt_agent.actor
 
     ##################################
     # Run Q-learning
@@ -141,20 +143,12 @@ def main():
 
     rl_evaluator = RLEvaluator(params)
 
-    if not params['offline']:
-        rl_evaluator.run_evaluation_loop(
-            params['num_traj'],
-            collect_policy=opt_agent.actor,
-            eval_policy=pruning_agent.actor,
-            buffer_path=params['buffer_path']
-        )
-    else:
-        rl_evaluator.run_evaluation_loop(
-            params['num_traj'],
-            collect_policy=None,
-            eval_policy=pruning_agent.actor,
-            buffer_path=params['buffer_path']
-        )
+    rl_evaluator.run_evaluation_loop(
+        params['num_traj'],
+        opt_policy=opt_actor,
+        eval_pruner=pruner,
+        buffer_path=params['buffer_path']
+    )
 
 
 if __name__ == '__main__':

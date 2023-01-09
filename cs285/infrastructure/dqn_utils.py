@@ -1,6 +1,7 @@
 """This file includes a collection of utility functions that are useful for implementing DQN."""
 import random
 from collections import namedtuple
+from typing import List
 
 import torch
 import gym
@@ -14,7 +15,7 @@ from cs285.infrastructure.atari_wrappers import wrap_deepmind
 from cs285.infrastructure.utils import *
 
 
-def get_maximizer_from_available_actions(values_na: torch.tensor, acs_list_n) -> torch.tensor:
+def get_maximizer_from_available_actions(values_na: torch.tensor, acs_list_n: List[List[int]]) -> torch.tensor:
     """
     For each row of qa_values, returns the maximizer action from the corresponding available actions.
     @param values_na: [n x a] tensor
@@ -25,7 +26,7 @@ def get_maximizer_from_available_actions(values_na: torch.tensor, acs_list_n) ->
     return ptu.from_numpy(get_maximizer_from_available_actions_np(values_na, acs_list_n)).to(torch.int64)
 
 
-def get_maximizer_from_available_actions_np(values_na: np.ndarray, acs_list_n) -> np.ndarray:
+def get_maximizer_from_available_actions_np(values_na: np.ndarray, acs_list_n: List[List[int]]) -> np.ndarray:
     """
     For each row of qa_values, returns the maximizer action from the corresponding available actions.
     @param values_na: [n x a] tensor
@@ -36,13 +37,13 @@ def get_maximizer_from_available_actions_np(values_na: np.ndarray, acs_list_n) -
 
 
 def gather_by_actions(qa_values: torch.tensor, ac_n: torch.tensor) -> torch.tensor:
-    if qa_values.ndim == 4:
+    if qa_values.ndim == 4:  # nare
         re_dim, ex_dim = qa_values.shape[-2:]
         ac_n = ac_n.unsqueeze(1).unsqueeze(2).unsqueeze(3).expand(-1, 1, re_dim, ex_dim)
-    elif qa_values.ndim == 3:
+    elif qa_values.ndim == 3:  # nar
         re_dim = qa_values.shape[-1]
         ac_n = ac_n.unsqueeze(1).unsqueeze(2).expand(-1, 1, re_dim)
-    elif qa_values.ndim == 2:
+    elif qa_values.ndim == 2:  # na
         ac_n = ac_n.unsqueeze(1)
 
     q_values_nr = torch.gather(
@@ -143,10 +144,6 @@ def get_env_kwargs(env_name):
             'ep_len': 200,
         }
         kwargs['exploration_schedule'] = lander_exploration_schedule(kwargs['num_timesteps'])
-
-        # TODO
-        if 'MultiReward' in env_name:
-            kwargs['gamma'] = 1.0
 
     elif env_name.startswith('MIMIC'):
         kwargs = {
