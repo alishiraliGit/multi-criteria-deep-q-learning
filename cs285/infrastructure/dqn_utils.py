@@ -158,7 +158,7 @@ def get_env_kwargs(env_name):
             'target_update_freq': 3000,
             'grad_norm_clipping': 10,
             'lander': False,
-            'num_timesteps': 40000,
+            'num_timesteps': 70000,
             'env_wrappers': empty_wrapper,
             'exploration_schedule': None,
         }

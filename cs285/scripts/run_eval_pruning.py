@@ -7,6 +7,7 @@ import argparse
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..'))
 
 from cs285.infrastructure.rl_evaluator import RLEvaluator
+from cs285.agents.pareto_opt_agent import LoadedParetoOptCQLAgent
 from cs285.infrastructure.dqn_utils import get_env_kwargs
 from cs285.infrastructure import pytorch_util as ptu
 from cs285.agents.dqn_agent import LoadedDQNAgent
@@ -50,6 +51,10 @@ def main():
     parser.add_argument('--offline', action='store_true')
     parser.add_argument('--buffer_path', type=str, default=None)
 
+    # CQL
+    parser.add_argument('--cql', action='store_true')
+    parser.add_argument('--cql_alpha', type=float, default=0.2,help='Higher values indicated stronger OOD penalty.')
+
     # Data path formatting
     parser.add_argument('--no_weights_in_path', action='store_true')
 
@@ -65,6 +70,8 @@ def main():
     prune_with_mdqn = params['prune_with_mdqn']
     prune_with_emdqn = params['prune_with_emdqn']
     assert sum([prune_with_idqn, prune_with_mdqn, prune_with_emdqn]) == 1
+
+    cql = params['cql']
 
     ##################################
     # Set system variables
@@ -126,6 +133,12 @@ def main():
         assert len(pruning_folder_paths) == 1
         pruning_file_path = os.path.join(pruning_folder_paths[0], 'dqn_agent.pt')
         pruner = ExtendedMDQNPruner(n_draw=params['pruning_n_draw'], file_path=pruning_file_path)
+
+    elif cql:
+        pruning_folder_paths = glob.glob(os.path.join(data_path, params['pruning_file_prefix'] + '*'))
+        pruning_file_paths = [os.path.join(f, 'dqn_agent.pt') for f in pruning_folder_paths]
+        pruning_agent = LoadedParetoOptCQLAgent(file_paths=pruning_file_paths, pruning_eps=params['pruning_eps'])
+        pruner = pruning_agent.actor
 
     # Skip this for offline RL
     if params['offline']:
