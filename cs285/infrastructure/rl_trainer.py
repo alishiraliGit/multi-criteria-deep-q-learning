@@ -137,7 +137,8 @@ class RLTrainer(object):
 
             all_paths = utils.format_reward(all_paths,params['env_rew_weights'])
 
-            self.paths, self.test_paths = train_test_split(all_paths, test_size=0.2, random_state=seed)
+            # Let's use 5% as validation set and 15% as hold-out set
+            self.paths, self.test_paths = train_test_split(all_paths, test_size=0.05, random_state=seed) 
 
             # Is this env continuous, or discrete?
             discrete = True

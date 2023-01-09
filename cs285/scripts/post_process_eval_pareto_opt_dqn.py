@@ -188,7 +188,7 @@ if __name__ == "__main__":
 
     ## Does the pareto set contain the optimal action?
 
-    # Assign one if pareto set contains optimal action
+    # Assign one if pareto set contains optimal action (here physician action)
     pareto_set_accuracies = [[1 if y in x else 0 for x, y in zip(pareto_set, optimal_set)] 
                                 for pareto_set, optimal_set in zip(pareto_action_sets, opt_action_sets)]
 

@@ -100,7 +100,8 @@ class RLEvaluator(object):
             with open(self.params['buffer_path'], 'rb') as f:
                 all_paths = pickle.load(f)
             all_paths = utils.format_reward(all_paths,self.params['env_rew_weights'])
-            _, paths = train_test_split(all_paths, test_size=0.2, random_state=self.params['seed'])
+            #evaluate on 15% hold-out set
+            _, paths = train_test_split(all_paths, test_size=0.15, random_state=self.params['seed']) 
         
         # We run the loop only once in the MIMIC setting since we do not sample trajectories
         if self.params['offline']:
