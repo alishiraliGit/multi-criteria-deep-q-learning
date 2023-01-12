@@ -1,15 +1,12 @@
 import shlex, subprocess
 
 """
-
 command_stem = [
 "python cs285/scripts/run_dqn.py --exp_name MIMICCQL_{r} --env_name MIMIC --env_rew_weights {w} --double_q --seed 1 --scalar_log_freq 2000 --params_log_freq 2000 --offline --cql --no_weights_in_path --buffer_path './Replay_buffer_extraction/Encoded_paths3_all_rewards.pkl'"
 ]
 
-
-
 name = ['baseline','SL1b','SL1c','Sd2L1b','Sd2L1c',
-        'Scb','Lcb','Sd2L','allinter','xallsparse']#
+        'Scb','Lcb','Sd2L','allinter','xallsparse']
 
 reward_weight = ['1 0 0 0 0 0 0 0 0 0 0', '0 0 1 0 0 0 0 1 0 0 0', '0 0 0 0 1 0 0 0 1 0 0', '0 0 0 0 0 0 1 1 0 0 0', '0 0 0 0 0 0 1 0 1 0 0', 
                '0 0 1 1 0 0 0 0 0 0 0', '0 0 0 0 0 0 0 1 1 0 0', '0 0 0 0 0 0 1 1 1 0 0', '0 0 1 1 0 0 1 1 1 0 0', '1 0 1 1 0 0 1 1 1 0 0']
@@ -45,9 +42,9 @@ if __name__ == "__main__":
         process = subprocess.Popen(args)
         process.wait()
 
-
+"""
 command_stem = [
-"python cs285/scripts/run_dqn.py --exp_name pCQLvdl_{eps} --env_name MIMIC --pruning_file_prefix MIMICCQL_ --pruning_eps {e} --env_rew_weights 1 0 0 0 0 0 0 0 0 0 0 --double_q --seed 1 --scalar_log_freq 2000 --params_log_freq 2000 --offline --cql --no_weights_in_path --buffer_path './Replay_buffer_extraction/Encoded_paths3_all_rewards.pkl'"
+"python cs285/scripts/run_dqn.py --exp_name pCQLv2_{eps} --env_name MIMIC --pruning_file_prefix MIMICCQL_ --pruning_eps {e} --env_rew_weights 1 0 0 0 0 0 0 0 0 0 0 --double_q --seed 1 --scalar_log_freq 2000 --params_log_freq 2000 --offline --cql --no_weights_in_path --buffer_path './Replay_buffer_extraction/Encoded_paths3_all_rewards.pkl'"
 ]
 
 eps_list = [0,0.05,0.1]
@@ -72,12 +69,13 @@ if __name__ == "__main__":
         process.wait()
 
 """
-
 command_stem = [
 "python cs285/scripts/run_dqn.py --exp_name pCQLvdl_{eps}ep --env_name MIMIC --pruning_file_prefix MIMICCQL_ --pruning_eps {e} --env_rew_weights 1 0 0 0 0 0 0 0 0 0 0 --double_q --seed 1 --scalar_log_freq 2000 --params_log_freq 2000 --offline --cql --no_weights_in_path --buffer_path './Replay_buffer_extraction/Encoded_paths3_all_rewards.pkl'"
 ]
 
-eps_list = [0,0.05]
+#'./Replay_buffer_extraction/Encoded_paths3_all_rewards.pkl'
+
+eps_list = [0,0.05,0.1]
 
 commands = []
 for command in command_stem:
@@ -97,4 +95,4 @@ if __name__ == "__main__":
         args = shlex.split(command)
         process = subprocess.Popen(args)
         process.wait()
-
+"""

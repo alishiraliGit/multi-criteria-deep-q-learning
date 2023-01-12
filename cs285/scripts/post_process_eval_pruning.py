@@ -12,13 +12,15 @@ import numpy as np
 import tensorflow as tf
 
 
-def get_action_set(file, tag):
+def get_action_set_data(file, tag):
     # load pickle file
     with open(file, 'rb') as f:
         actions_dict_ = pickle.load(f)
 
     # get actions for tag
     actions = actions_dict_[tag]
+
+    print(actions[0])
 
     # Merge all trajectories
     action_set = []
@@ -33,6 +35,40 @@ def get_pareto_set_sizes(action_set):
     pareto_sizes = [len(x) for x in action_set]
 
     return pareto_sizes
+
+def get_flags_per_traj(file,tag='action_flags'):
+
+    with open(file, 'rb') as f:
+        actions_dict_ = pickle.load(f)
+
+    # get flags for each action
+    flags_ac = actions_dict_[tag]
+
+    flags_traj = [sum(flags) for flags in flags_ac]
+    return flags_traj
+
+def get_mort_per_traj(file,tag='mortality_rtg'):
+
+    with open(file, 'rb') as f:
+        actions_dict_ = pickle.load(f)
+
+    # get flags for each action
+    mort_ac = actions_dict_[tag]
+
+    mort_traj = [max(flags) for flags in mort_ac]
+    return mort_traj
+
+def get_q_per_traj(file,tag='mortality_rtg'):
+
+    with open(file, 'rb') as f:
+        actions_dict_ = pickle.load(f)
+
+    # get flags for each action
+    q_vals = actions_dict_[tag]
+
+    q_traj = [(sum(q)/len(q)) for q in q_vals]
+    return q_traj
+
 
 
 if __name__ == "__main__":
@@ -53,6 +89,9 @@ if __name__ == "__main__":
     # Add baseline model if needed
     # parser.add_argument('--baseline_model', default=None) #should be prefix of model
 
+    # Check whether plot should be shown
+    parser.add_argument('--show', action='store_true')
+    
     # Check whether plot should be saved
     parser.add_argument('--save', action='store_true')
 
@@ -60,6 +99,8 @@ if __name__ == "__main__":
 
     # Convert to dictionary
     params = vars(args)
+
+    before_eps = len(params['prefix'][:-6])
 
     ###############################
     # Load data
@@ -76,15 +117,24 @@ if __name__ == "__main__":
     file_paths_ = [glob.glob(os.path.join(f, 'actions*'))[0] for f in folder_paths_]
 
     # Get action_set for optimal and pruned actions
-    opt_action_sets = [get_action_set(file, params['opt_tag']) for file in file_paths_]
-    pareto_action_sets = [get_action_set(file, params['eval_tag']) for file in file_paths_]
+    opt_action_sets = [get_action_set_data(file, params['opt_tag']) for file in file_paths_]
+    pareto_action_sets = [get_action_set_data(file, params['eval_tag']) for file in file_paths_]
+
+    #Get mortality indicator and number of flags per trajectory (flags == action not in pareto-set)
+    flags_per_traj = [get_flags_per_traj(file,'action_flags')for file in file_paths_]
+    mort_per_traj = [get_mort_per_traj(file,'mortality_rtg') for file in file_paths_]
+    q_per_traj = [get_q_per_traj(file,'q_vals')for file in file_paths_]
+
+    all_flags = [get_action_set_data(file,'action_flags')for file in file_paths_]
+    all_q_vals = [get_action_set_data(file,'q_vals')for file in file_paths_]
+
 
     # Get pareto_set sizes
     pareto_set_sizes = [get_pareto_set_sizes(action_set) for action_set in pareto_action_sets]
 
     # Get eps number
     folder_paths_short = [f.split(os.sep)[-1] for f in folder_paths_]  # used as experiment name
-    eps_list = [int(f.split('_')[0][7:]) for f in folder_paths_short]
+    eps_list = [int(f.split('_')[0][before_eps:]) for f in folder_paths_short]
 
     # Sort these lists by eps
     eps_list_sorted = sorted(eps_list)
@@ -149,8 +199,9 @@ if __name__ == "__main__":
 
         if params['save']:
             plt.savefig(os.path.join(fig_path_, folder_paths_short[i] + '_counts.jpg'))
-
-        plt.show()
+        
+        if params['show']:
+            plt.show()
 
     ###############################
     # Some analysis
@@ -180,9 +231,10 @@ if __name__ == "__main__":
     plt.tight_layout()
 
     if params['save']:
-        plt.savefig(os.path.join(fig_path_, folder_paths_short[i] + '_mean_set_size.jpg'))
+        plt.savefig(os.path.join(fig_path_, folder_paths_short[i] + '_mean_set_size.pdf'))
 
-    plt.show()
+    if params['show']:
+        plt.show()
 
     # print(f'The average number of pareto-optimal actions in the set is {mean_size}.' +
     #      f' The standard deviation is {std_size}')
@@ -217,9 +269,10 @@ if __name__ == "__main__":
     plt.tight_layout()
 
     if params['save']:
-        plt.savefig(os.path.join(fig_path_, folder_paths_short[i] + '_mean_pareto_acc.jpg'))
+        plt.savefig(os.path.join(fig_path_, folder_paths_short[i] + '_mean_pareto_acc.pdf'))
 
-    plt.show()
+    if params['show']:
+        plt.show()
 
     # print(f'Overall {pareto_mean_accuracy} % of the pareto sets contain the action selected by the network trained' +
     # f' using the correct reward function')
@@ -249,12 +302,100 @@ if __name__ == "__main__":
         plt.title(f'Pareto-set accuracy by size eps={eps_list_sorted[i]}')
 
         if params['save']:
-            plt.savefig(os.path.join(fig_path_, folder_paths_short[i] + '_acc_by_size.jpg'))
-
-        plt.show()
+            plt.savefig(os.path.join(fig_path_, folder_paths_short[i] + '_acc_by_size.pdf'))
+        
+        if params['show']:  
+            plt.show()
 
         # print(results_df_grouped_mean)
         # print(results_df_grouped_std)
+        i += 1
+
+    results_dicts = [{"Number of Flags": flags, "Mortality": mort}
+                     for flags, mort in zip(flags_per_traj, mort_per_traj)]
+    results_dfs = [pd.DataFrame(results_dict) for results_dict in results_dicts]
+
+    results_df_grouped_means = [results_df.groupby('Number of Flags').mean() for results_df in results_dfs]
+    results_df_grouped_stds = [results_df.groupby('Number of Flags').std() for results_df in results_dfs]
+
+    print("Flags and survival rate analysis")
+
+    i = 0
+    for results_df_grouped_mean, results_df_grouped_std in zip(results_df_grouped_means, results_df_grouped_stds):
+
+        plt.figure(figsize=(5, 4))
+
+        plt.bar(results_df_grouped_mean.index, results_df_grouped_mean['Mortality'], color='blue')
+        #plt.ylim(0, 1)
+        #plt.xlim(0, 25)
+        plt.ylabel('Survival rate')
+        plt.xlabel('Number of Pareto actions in trajectory')
+        plt.title(f'Survival rate by number of pareto-actions in traj eps={eps_list_sorted[i]}')
+
+        if params['save']:
+            plt.savefig(os.path.join(fig_path_, folder_paths_short[i] + 'mortality_num_flags.pdf'))
+        
+        plt.show()
+        #if params['show']:  
+            #plt.show()
+
+        # print(results_df_grouped_mean)
+        # print(results_df_grouped_std)
+        i += 1
+    
+    results_dicts = [{"Flags": flags, "q_vals": q_val}
+                     for flags, q_val in zip(all_flags, all_q_vals)]
+
+    results_dfs = [pd.DataFrame(results_dict) for results_dict in results_dicts]
+
+    flagged_dfs = [results_df[results_df['Flags']==1] for results_df in results_dfs]
+    non_flagged_dfs = [results_df[results_df['Flags']==0] for results_df in results_dfs]
+
+    print("Flags and Q_vals analysis")
+
+    i = 0
+    bins = np.linspace(0, 100, 50)
+    for flagged, non_flagged in zip(flagged_dfs, non_flagged_dfs):
+
+        plt.hist(flagged['q_vals'], bins, density=True, alpha=0.5, label='Pareto-set actions')
+        plt.hist(non_flagged['q_vals'], bins, density=True, alpha=0.5, label='Non pareto-set actions')
+        plt.ylabel('Probability')
+        plt.xlabel('Q-value per action')
+        plt.title(f'Q-value historgram eps {eps_list_sorted[i]}')
+        plt.legend(loc='upper right')
+
+        if params['save']:
+            plt.savefig(os.path.join(fig_path_, folder_paths_short[i] + 'hist_flagged_vs_non.pdf'))
+
+        plt.show()
+        i += 1
+    
+    results_dicts = [{"Flags_traj": flags, "q_traj": q_val}
+                    for flags, q_val in zip(flags_per_traj, q_per_traj)]
+
+
+    results_dfs = [pd.DataFrame(results_dict) for results_dict in results_dicts]
+
+    flagged_dfs = [results_df[results_df['Flags_traj']>0] for results_df in results_dfs]
+    non_flagged_dfs = [results_df[results_df['Flags_traj']==0] for results_df in results_dfs]
+
+    print("Flags and Q_vals per trajectory analysis")
+
+    i = 0
+    bins = np.linspace(0, 100, 50)
+    for flagged, non_flagged in zip(flagged_dfs, non_flagged_dfs):
+
+        plt.hist(flagged['q_traj'], bins, density=True, alpha=0.5, label='Traj with pareto set actions')
+        plt.hist(non_flagged['q_traj'], bins, density=True, alpha=0.5, label='Only non-pareto-set actions in traj')
+        plt.ylabel('Probability')
+        plt.xlabel('Mean Q-value per trajectory')
+        plt.title(f'Mean Q-value per traj historgram eps={eps_list_sorted[i]}')
+        plt.legend(loc='upper right')
+
+        if params['save']:
+            plt.savefig(os.path.join(fig_path_, folder_paths_short[i] + 'hist_q_per_traj_flagged.pdf'))
+
+        plt.show()
         i += 1
 
 

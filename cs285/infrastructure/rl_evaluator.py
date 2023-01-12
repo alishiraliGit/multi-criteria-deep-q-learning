@@ -12,6 +12,7 @@ from cs285.infrastructure.atari_wrappers import ReturnWrapper
 from cs285.infrastructure import utils
 from cs285.infrastructure.dqn_utils import register_custom_envs
 from cs285.pruners.base_pruner import BasePruner
+from cs285.infrastructure import pytorch_util as ptu
 
 
 class RLEvaluator(object):
@@ -84,12 +85,17 @@ class RLEvaluator(object):
             self.params['agent_params']['ac_dim'] = ac_dim
             self.params['agent_params']['ob_dim'] = ob_dim
 
-    def run_evaluation_loop(self, n_iter, opt_policy, eval_pruner: BasePruner, buffer_path):
+    def run_evaluation_loop(self, n_iter, opt_policy, eval_pruner: BasePruner, buffer_path, pruning_critic = None):
         # TODO: Hard-coded
         print_period = 1
 
         opt_actions = []
         pruned_actions = []
+        action_flags = []
+
+        all_q_values = []
+        all_rtgs = []
+
 
         if buffer_path is not None:
             # Load replay buffer data
@@ -119,11 +125,39 @@ class RLEvaluator(object):
 
             # Get optimal actions and pruned_actions
             for path in tqdm(paths):
+                #get actions
                 opt_actions.append(path['action'].astype(int).tolist())
-                pruned_actions.append(eval_pruner.get_list_of_available_actions(path['observation']))
+                
+                #get pareto action sets per traj
+                pareto_actions = eval_pruner.get_list_of_available_actions(path['observation'])
+                pruned_actions.append(pareto_actions)
+                
+                #Flag if action not in pareto-set
+                flags = [1 if path['action'][i] in pareto_actions[i] else 0 for i in range(len(path['action']))]
+                action_flags.append(flags)
+
+                #Get reward to go (and transform to mortality indicator, assummes Gamma == 1)
+                rtg_n = utils.discounted_cumsum(path['reward'], self.params['gamma']) /100 #to make this a mortality indicator
+                rtg_n = (rtg_n + 1)/2
+                all_rtgs.append(rtg_n)
+                
+                #Get Q-values
+                if pruning_critic != None:                    
+                    qa_values_na = pruning_critic.qa_values(path['observation'])
+                    
+                    qa_values_na = ptu.from_numpy(qa_values_na)
+                    ac_n = ptu.from_numpy(path['action']).to(torch.long)
+                    q_values_n = torch.gather(qa_values_na, 1, ac_n.unsqueeze(1)).squeeze(1)
+                    q_values_n = list(ptu.to_numpy(q_values_n))
+                    #print(q_values_n)
+                    all_q_values.append(q_values_n)
+                
 
         # Log/save
         with open(os.path.join(self.log_dir, 'actions.pkl'), 'wb') as f:
-            pickle.dump({'opt_actions': opt_actions, 'pruned_actions': pruned_actions}, f)
+            if pruning_critic != None:
+                pickle.dump({'opt_actions': opt_actions, 'pruned_actions': pruned_actions, 'action_flags':action_flags, 'mortality_rtg': all_rtgs, 'q_vals': all_q_values}, f)
+            else:
+                pickle.dump({'opt_actions': opt_actions, 'pruned_actions': pruned_actions, 'action_flags':action_flags, 'mortality_rtg': all_rtgs}, f)
 
         return opt_actions, pruned_actions

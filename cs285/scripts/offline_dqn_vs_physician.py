@@ -73,7 +73,6 @@ def plot_binned_mortality(eval_paths, params, critic, folder_path = "test"):
         ac_n = ptu.from_numpy(ac_n).to(torch.long)
 
         q_values_n = torch.gather(qa_values_na, 1, ac_n.unsqueeze(1)).squeeze(1)
-
         q_values_n = ptu.to_numpy(q_values_n)
 
         # Get reward-to-go and transform to dummy indicator of survival
@@ -105,7 +104,7 @@ def plot_binned_mortality(eval_paths, params, critic, folder_path = "test"):
 
     #create the binned plot
 
-    bins = np.linspace(25, 60,10)
+    bins = np.linspace(25, 70,10)
     group = traj_info.groupby(pd.cut(traj_info.mean_q, bins))
 
     plot_centers = (bins [:-1] + bins [1:])/2
@@ -133,7 +132,7 @@ def plot_binned_mortality(eval_paths, params, critic, folder_path = "test"):
     survived_hist_data = traj_info[traj_info['survive']==1]
     nonsurvived_hist_data = traj_info[traj_info['survive']==0]
 
-    bins = np.linspace(20, 70, 50)
+    bins = np.linspace(20, 80, 50)
 
     plt.hist(survived_hist_data['mean_q'], bins, density=True, alpha=0.5, label='survivors')
     plt.hist(nonsurvived_hist_data['mean_q'], bins, density=True, alpha=0.5, label='nonsurvivors')
@@ -161,7 +160,7 @@ if __name__ == "__main__":
     parser.add_argument('--gamma', type=float, nargs='*', default=1)
 
     #get prefix information for models
-    parser.add_argument('--critic_prefix', type=str, default="pCQLvdl_*[0-9]_M") #the model I want to load
+    parser.add_argument('--critic_prefix', type=str, default="pCQLv2") #the model I want to load
     #parser.add_argument('--pruning_file_prefix', type=str, default="MIMICCQL") #the models based on which we prune
 
     # Pruned models loaded
@@ -196,7 +195,7 @@ if __name__ == "__main__":
     
 
     #add baseline model if needed
-    #parser.add_argument('--baseline_model', default=None) #should be prefix of model
+    parser.add_argument('--baseline_model', default=None) #should be prefix of model
 
     args = parser.parse_args()
 
@@ -247,6 +246,23 @@ if __name__ == "__main__":
             pruning_folder_paths = glob.glob(os.path.join(data_path, params['critic_prefix'] + '*'))
             critic_file_path = [os.path.join(f, 'dqn_agent.pt') for f in pruning_folder_paths]
             critics = [DQNCritic.load(f) for f in critic_file_path]
+        
+    #Adding result of baseline sparse DQN if needed
+    if params['baseline_model'] is not None:
+        prefix_b = params['baseline_model']
+        folder_paths_b = glob.glob(os.path.join(data_path, prefix_b + '*'))
+        critic_file_path_b = [os.path.join(f, 'dqn_agent.pt') for f in folder_paths_b]
+        if cql:
+            critics_b = [CQLCritic.load(f) for f in critic_file_path_b]
+        else:
+            critics_b = [DQNCritic.load(f) for f in critic_file_path_b]
+
+        critic_file_path = critic_file_path + critic_file_path_b
+        critics = critics + critics_b
+
+        #file_paths_b = [glob.glob(os.path.join(f, 'events*'))[0] for f in folder_paths_b]
+        #file_paths_ = file_paths_ + file_paths_b
+        #folder_paths_ = folder_paths_ + folder_paths_b
 
 
     ##################################
