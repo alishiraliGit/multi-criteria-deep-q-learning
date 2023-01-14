@@ -13,7 +13,7 @@ if __name__ == "__main__":
     if not (os.path.exists(fig_path_)):
         os.makedirs(fig_path_)
 
-    exp_name_ = 'v2_cmdqn_eval'
+    exp_name_ = 'v2_offline_cmdqn_eval'
 
     all_folders_ = glob.glob(os.path.join(data_path_, exp_name_ + '*'))
     if len(all_folders_) > 1:

@@ -3,6 +3,7 @@ import numpy as np
 import time
 import copy
 
+
 ############################################
 ############################################
 
@@ -26,18 +27,17 @@ def discounted_cumsum(rewards: np.ndarray, gamma) -> np.ndarray:
 
 
 def calculate_mean_prediction_error(env, action_sequence, models, data_statistics):
-
     model = models[0]
 
     # true
     true_states = perform_actions(env, action_sequence)['observation']
 
     # predicted
-    ob = np.expand_dims(true_states[0],0)
+    ob = np.expand_dims(true_states[0], 0)
     pred_states = []
     for ac in action_sequence:
         pred_states.append(ob)
-        action = np.expand_dims(ac,0)
+        action = np.expand_dims(ac, 0)
         ob = model.get_prediction(ob, action, data_statistics)
     pred_states = np.squeeze(pred_states)
 
@@ -45,6 +45,7 @@ def calculate_mean_prediction_error(env, action_sequence, models, data_statistic
     mpe = mean_squared_error(pred_states, true_states)
 
     return mpe, true_states, pred_states
+
 
 def perform_actions(env, actions):
     ob = env.reset()
@@ -68,8 +69,10 @@ def perform_actions(env, actions):
 
     return Path(obs, image_obs, acs, rewards, next_obs, terminals)
 
+
 def mean_squared_error(a, b):
-    return np.mean((a-b)**2)
+    return np.mean((a - b) ** 2)
+
 
 ############################################
 ############################################
@@ -78,7 +81,7 @@ def sample_trajectory(env, policy, max_path_length, render=False, render_mode=('
     # DONE TODO: get this from hw1 or hw2
     # TODO Ali: where to use render mode?
     # initialize env for the beginning of a new rollout
-    ob = env.reset() # HINT: should be the output of resetting the env
+    ob = env.reset()  # HINT: should be the output of resetting the env
 
     # init vars
     obs, acs, rewards, next_obs, terminals, image_obs = [], [], [], [], [], []
@@ -106,7 +109,7 @@ def sample_trajectory(env, policy, max_path_length, render=False, render_mode=('
 
         # end the rollout if the rollout ended
         # HINT: rollout can end due to done, or due to max_path_length
-        rollout_done = 0 # HINT: this is either 0 or 1
+        rollout_done = 0  # HINT: this is either 0 or 1
         if done or steps >= max_path_length:
             rollout_done = 1
         terminals.append(rollout_done)
@@ -146,6 +149,7 @@ def sample_n_trajectories(env, policy, ntraj, max_path_length, render=False, ren
 
     return paths
 
+
 ############################################
 ############################################
 
@@ -179,37 +183,41 @@ def convert_listofrollouts(paths):
     unconcatenated_rewards = [path["reward"] for path in paths]
     return observations, actions, next_observations, terminals, concatenated_rewards, unconcatenated_rewards
 
+
 ############################################
 ############################################
 
 def get_pathlength(path):
     return len(path["reward"])
 
+
 def normalize(data, mean, std, eps=1e-8):
-    return (data-mean)/(std+eps)
+    return (data - mean) / (std + eps)
+
 
 def unnormalize(data, mean, std):
-    return data*std+mean
+    return data * std + mean
+
 
 def add_noise(data_inp, noiseToSignal=0.01):
+    data = copy.deepcopy(data_inp)  # (num data points, dim)
 
-    data = copy.deepcopy(data_inp) #(num data points, dim)
-
-    #mean of data
+    # mean of data
     mean_data = np.mean(data, axis=0)
 
-    #if mean is 0,
-    #make it 0.001 to avoid 0 issues later for dividing by std
+    # if mean is 0,
+    # make it 0.001 to avoid 0 issues later for dividing by std
     mean_data[mean_data == 0] = 0.000001
 
-    #width of normal distribution to sample noise from
-    #larger magnitude number = could have larger magnitude noise
+    # width of normal distribution to sample noise from
+    # larger magnitude number = could have larger magnitude noise
     std_of_noise = mean_data * noiseToSignal
     for j in range(mean_data.shape[0]):
         data[:, j] = np.copy(data[:, j] + np.random.normal(
             0, np.absolute(std_of_noise[j]), (data.shape[0],)))
 
     return data
+
 
 ############################################
 ############################################
@@ -252,6 +260,7 @@ def eval_trajectory(env, policy, max_path_length, render=False, render_mode=('rg
 
     return Path(obs, image_obs, acs, rewards, next_obs, terminals)
 
+
 def eval_trajectories(env, policy, min_timesteps_per_batch, max_path_length, render=False, render_mode=('rgb_array')):
     """
         Collect rollouts using policy
@@ -260,12 +269,11 @@ def eval_trajectories(env, policy, min_timesteps_per_batch, max_path_length, ren
     timesteps_this_batch = 0
     paths = []
     while timesteps_this_batch < min_timesteps_per_batch:
-
-        #collect rollout
+        # collect rollout
         path = eval_trajectory(env, policy, max_path_length, render, render_mode)
         paths.append(path)
 
-        #count steps
+        # count steps
         timesteps_this_batch += get_pathlength(path)
         print('At timestep:    ', timesteps_this_batch, '/', min_timesteps_per_batch, end='\r')
     return paths, timesteps_this_batch
@@ -306,6 +314,7 @@ def sample_random_trajectory(env, max_path_length, render=False, render_mode=('r
 
     return Path(obs, image_obs, acs, rewards, next_obs, terminals)
 
+
 def sample_random_trajectories(env, min_timesteps_per_batch, max_path_length, render=False, render_mode=('rgb_array')):
     """
         Collect rollouts using policy
@@ -314,14 +323,15 @@ def sample_random_trajectories(env, min_timesteps_per_batch, max_path_length, re
     timesteps_this_batch = 0
     paths = []
     while timesteps_this_batch < min_timesteps_per_batch:
-        #collect rollout
+        # collect rollout
         path = sample_random_trajectory(env, max_path_length, render, render_mode)
         paths.append(path)
 
-        #count steps
+        # count steps
         timesteps_this_batch += get_pathlength(path)
         print('At timestep:    ', timesteps_this_batch, '/', min_timesteps_per_batch, end='\r')
     return paths, timesteps_this_batch
+
 
 ############################################
 ############################################
@@ -329,7 +339,7 @@ def sample_random_trajectories(env, min_timesteps_per_batch, max_path_length, re
 ############################################
 ############################################
 
-def format_reward(paths,weights):
+def format_reward(paths, weights=None, multi=False):
     """
     Path structure is :
     #   'sparse_90d_rew', 'Reward_matrix_paper',
@@ -337,14 +347,43 @@ def format_reward(paths,weights):
     #   'Reward_SOFA_2_continous', 'Reward_SOFA_2_binary',
     #   'Reward_SOFA_change2_binary', 'Reward_lac_1_continous',
     #   'Reward_lac_1_binary', 'Reward_lac_2_continous', 'Reward_lac_2_binary']
+
+    If multi=True, rewards will be concatenated
     """
-    assert len(weights) == 11
+    if not multi:
+        assert len(weights) == 11
 
     new_paths = []
     for path in paths:
-        path['reward'] = weights[0]*path['sparse_90d_rew'] + weights[1]*path['Reward_matrix_paper'] + weights[2]*path['Reward_SOFA_1_continous'] + weights[3]*path['Reward_SOFA_1_binary'] + \
-                        weights[4]*path['Reward_SOFA_2_continous'] + weights[5]*path['Reward_SOFA_2_binary'] + weights[6]*path['Reward_SOFA_change2_binary'] + weights[7]*path['Reward_lac_1_continous'] + \
-                        weights[8]*path['Reward_lac_1_binary'] + weights[9]*path['Reward_lac_2_continous'] + weights[10]*path['Reward_lac_2_binary'] 
+        if multi:
+            path['reward'] = np.stack(
+                [
+                    path['Reward_matrix_paper'],
+                    path['Reward_SOFA_1_continous'],
+                    path['Reward_SOFA_1_binary'],
+                    path['Reward_SOFA_2_continous'],
+                    path['Reward_SOFA_2_binary'],
+                    path['Reward_SOFA_change2_binary'],
+                    path['Reward_lac_1_continous'],
+                    path['Reward_lac_1_binary'],
+                    path['Reward_lac_2_continous'],
+                    path['Reward_lac_2_binary']
+                ],
+                axis=1
+            )
+        else:
+            path['reward'] = weights[0] * path['sparse_90d_rew'] \
+                             + weights[1] * path['Reward_matrix_paper'] \
+                             + weights[2] * path['Reward_SOFA_1_continous'] \
+                             + weights[3] * path['Reward_SOFA_1_binary'] \
+                             + weights[4] * path['Reward_SOFA_2_continous'] \
+                             + weights[5] * path['Reward_SOFA_2_binary'] \
+                             + weights[6] * path['Reward_SOFA_change2_binary'] \
+                             + weights[7] * path['Reward_lac_1_continous'] \
+                             + weights[8] * path['Reward_lac_1_binary'] \
+                             + weights[9] * path['Reward_lac_2_continous'] \
+                             + weights[10] * path['Reward_lac_2_binary']
+
         new_paths.append(path)
-    
+
     return new_paths

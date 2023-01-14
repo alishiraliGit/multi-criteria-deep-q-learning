@@ -217,14 +217,21 @@ def lander_exploration_schedule(num_timesteps):
 # MIMIC functions
 ###################
 
+def create_mimic_q_network(ob_dim, num_actions, num_rewards=1, ex_dim=1):
+    if ex_dim > 1:
+        output_layer = ptu.MultiDimLinear(64, (num_actions, num_rewards, ex_dim))
+    else:
+        if num_rewards == 1:
+            output_layer = nn.Linear(64, num_actions)
+        else:
+            output_layer = ptu.MultiDimLinear(64, (num_actions, num_rewards))
 
-def create_mimic_q_network(ob_dim, num_actions):
     return nn.Sequential(
         nn.Linear(ob_dim, 64),
         nn.ReLU(),
         nn.Linear(64, 64),
         nn.ReLU(),
-        nn.Linear(64, num_actions),
+        output_layer,
     )
 
 

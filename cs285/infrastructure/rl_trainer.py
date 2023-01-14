@@ -56,6 +56,9 @@ class RLTrainer(object):
             import matplotlib
             matplotlib.use('Agg')
 
+        #####################
+        # Online learning
+        #####################
         if not self.offline:
             # Make the gym environment
             register_custom_envs()
@@ -131,10 +134,15 @@ class RLTrainer(object):
             with open(self.params['buffer_path'], 'rb') as f:
                 all_paths = pickle.load(f)
 
-            all_paths = utils.format_reward(all_paths,params['env_rew_weights'])
+            if self.params['env_name'] == 'MIMIC':
+                all_paths = utils.format_reward(all_paths, weights=params['env_rew_weights'], multi=False)
+            elif self.params['env_name'] == 'MIMIC-MultiInterReward':
+                all_paths = utils.format_reward(all_paths, multi=True)
+            else:
+                raise Exception('Invalid env_name!')
 
             # Let's use 5% as validation set and 15% as hold-out set
-            self.paths, self.test_paths = train_test_split(all_paths, test_size=0.05, random_state=seed) 
+            self.paths, self.test_paths = train_test_split(all_paths, test_size=0.05, random_state=seed)
 
             # Is this env continuous, or discrete?
             discrete = True
@@ -147,7 +155,8 @@ class RLTrainer(object):
             ob_shape = self.paths[0]['observation'].shape
             ob_dim = 1 if len(ob_shape) == 1 else ob_shape[1]
             ac_dim = 25
-            re_dim = 1
+            re_shape = self.paths[0]['reward'].shape
+            re_dim = 1 if len(re_shape) == 1 else re_shape[1]
             self.params['agent_params']['ac_dim'] = ac_dim
             self.params['agent_params']['ob_dim'] = ob_dim
             self.params['agent_params']['re_dim'] = re_dim
@@ -229,7 +238,7 @@ class RLTrainer(object):
 
             if not self.offline:
                 self.total_envsteps += envsteps_this_batch
-            else:   
+            else:
                 self.total_envsteps = envsteps_this_batch
 
             # Relabel the collected obs with actions from a provided expert policy
@@ -306,7 +315,7 @@ class RLTrainer(object):
         print("\nCollecting data to be used for training...")
         paths, envsteps_this_batch = utils.sample_trajectories(
             self.env,
-            collect_policy, 
+            collect_policy,
             min_timesteps_per_batch=num_transitions_to_sample,
             max_path_length=self.params['ep_len'],
             render=False
@@ -445,7 +454,7 @@ class RLTrainer(object):
             print('Done logging...\n\n')
 
             self.logger.flush()
-    
+
     def perform_dqn_offline_logging(self, itr, train_paths, eval_paths, all_logs):
 
         last_log = all_logs[-1]
@@ -453,7 +462,7 @@ class RLTrainer(object):
         if len(last_log) == 0:
             return
 
-        #Run for test set
+        # Run for test set
         all_q_values = []
         all_rtgs = []
         all_rtgs_mort = []
@@ -489,11 +498,10 @@ class RLTrainer(object):
         all_rtgs = np.concatenate(all_rtgs, axis=0)
         all_rtgs_mort = np.concatenate(all_rtgs_mort, axis=0)
 
-
         rho = np.corrcoef(all_rtgs, all_q_values)[0, 1]
         rho_mort = np.corrcoef(all_rtgs_mort, all_q_values)[0, 1]
 
-        #Run for train set
+        # Run for train set
 
         all_q_values = []
         all_rtgs = []

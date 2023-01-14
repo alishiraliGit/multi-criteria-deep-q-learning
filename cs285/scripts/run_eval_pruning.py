@@ -14,7 +14,7 @@ from cs285.agents.dqn_agent import LoadedDQNAgent
 from cs285.pruners.independent_dqns_pruner import IDQNPruner
 from cs285.pruners.dqn_pruner import MDQNPruner, ExtendedMDQNPruner
 from cs285.critics.cql_critic import CQLCritic, PrunedCQLCritic
-from cs285.critics.dqn_critic import DQNCritic, MDQNCritic, ExtendedMDQNCritic, PrunedDQNCritic
+from cs285.critics.dqn_critic import DQNCritic, PrunedDQNCritic
 
 
 def main():
@@ -37,8 +37,8 @@ def main():
     # Path to optimal agent
     parser.add_argument('--opt_file_prefix', type=str)  # This is only required for the gym-based evaluation
 
-    # Path to pruning critic trained in run_dqn script
-    parser.add_argument('--trained_pruning_critic', type=str, default=None)
+    # Path to phase 2 final critic
+    parser.add_argument('--phase_2_critic_file_prefix', type=str, default=None)
 
     # Pruning
     parser.add_argument('--pruning_file_prefix', type=str, default=None)
@@ -78,8 +78,6 @@ def main():
     cql = params['cql']
     assert sum([prune_with_idqn, prune_with_mdqn, prune_with_emdqn, cql]) == 1
 
-    
-
     ##################################
     # Set system variables
     ##################################
@@ -92,7 +90,7 @@ def main():
     ##################################
     # Create directory for logging
     ##################################
-    data_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../data')
+    data_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'data')
 
     if not (os.path.exists(data_path)):
         os.makedirs(data_path)
@@ -142,24 +140,23 @@ def main():
         pruner = ExtendedMDQNPruner(n_draw=params['pruning_n_draw'], file_path=pruning_file_path)
 
     elif cql:
-        pruning_folder_paths = glob.glob(os.path.join(data_path, params['pruning_file_prefix'] + '*'))
         pruning_file_paths = [os.path.join(f, 'dqn_agent.pt') for f in pruning_folder_paths]
-        pruner = ICQLPruner(file_paths=pruning_file_paths, pruning_eps=params['pruning_eps'])
-    
-    
-    if params['trained_pruning_critic'] != None:
-        pruning_critic = None
-        pruning_folder_paths = glob.glob(os.path.join(data_path, params['trained_pruning_critic'] + '*'))
-        critic_file_path = [os.path.join(f, 'dqn_agent.pt') for f in pruning_folder_paths]
+        pruner = ICQLPruner(pruning_eps=params['pruning_eps'], file_paths=pruning_file_paths)
 
-        print(critic_file_path[0])
-        
+    # Load phase 2 critic if provided
+    pruning_critic = None
+    if params['phase_2_critic_file_prefix'] is not None:
+        critic_folder_paths = glob.glob(os.path.join(data_path, params['phase_2_critic_file_prefix'] + '*'))
+        assert len(critic_folder_paths) == 1
+        critic_file_path = os.path.join(critic_folder_paths[0], 'dqn_agent.pt')
+
         if cql:
-            pruning_critic = CQLCritic.load(critic_file_path[0])
-            #pruning_critic = PrunedCQLCritic.load(critic_file_path[0])
+            pruning_critic = CQLCritic.load(critic_file_path)
+            # pruning_critic = PrunedCQLCritic.load(critic_file_path[0])
         else:
-            pruning_critic = DQNCritic.load(critic_file_path[0])
-            #pruning_critic = PrunedDQNCritic.load(critic_file_path[0])
+            pruning_critic = DQNCritic.load(critic_file_path)
+            # pruning_critic = PrunedDQNCritic.load(critic_file_path)
+            # TODO: PrunedDQNCritic can't be loaded b/c its action_pruner is not saved
 
     # Skip this for offline RL
     if params['offline']:
