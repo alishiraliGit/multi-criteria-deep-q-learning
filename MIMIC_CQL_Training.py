@@ -75,12 +75,12 @@ command_stem = [
 
 #'./Replay_buffer_extraction/Encoded_paths3_all_rewards.pkl'
 
-eps_list = [0,0.05,0.1]
+alpha_list = [0,0.05,0.1]
 
 commands = []
 for command in command_stem:
-    for i in range(len(eps_list)):
-        commands.append(command.format(eps=int(eps_list[i]*100), e=eps_list[i]))
+    for i in range(len(alpha_list)):
+        commands.append(command.format(eps=int(alpha_list[i]*100), e=alpha_list[i]))
 
 if __name__ == "__main__":
     for command in commands:

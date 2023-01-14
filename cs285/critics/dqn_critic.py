@@ -58,6 +58,11 @@ class DQNCritic(BaseCritic):
         self.q_net.to(ptu.device)
         self.q_net_target.to(ptu.device)
 
+        # CQL
+        self.add_cql_loss = hparams.get('add_cql_loss', False)
+        if self.add_cql_loss:
+            self.cql_alpha = hparams['cql_alpha']
+
     def get_actor_class(self):
         return argmax_policy.ArgMaxPolicy
 
@@ -105,6 +110,13 @@ class DQNCritic(BaseCritic):
         assert q_t_values.shape == target.shape
         loss = self.loss(q_t_values, target)
 
+        # Add CQL loss if requested
+        if self.add_cql_loss:
+            q_t_logsumexp = torch.logsumexp(qa_t_values, dim=1)
+            cql_loss = torch.mean(q_t_logsumexp - q_t_values)
+            loss = self.cql_alpha * cql_loss + loss
+
+        # Step the optimizer
         self.optimizer.zero_grad()
         loss.backward()
         utils.clip_grad_value_(self.q_net.parameters(), self.grad_norm_clipping)
@@ -204,6 +216,13 @@ class PrunedDQNCritic(DQNCritic):
         assert q_t_values.shape == target.shape
         loss = self.loss(q_t_values, target)
 
+        # Add CQL loss if requested
+        if self.add_cql_loss:
+            q_t_logsumexp = torch.logsumexp(qa_t_values, dim=1)
+            cql_loss = torch.mean(q_t_logsumexp - q_t_values)
+            loss = self.cql_alpha * cql_loss + loss
+
+        # Step the optimizer
         self.optimizer.zero_grad()
         loss.backward()
         utils.clip_grad_value_(self.q_net.parameters(), self.grad_norm_clipping)
@@ -339,6 +358,13 @@ class MDQNCritic(DQNCritic):
 
         loss = self.loss(q_t_values_nr, target_nr)
 
+        # Add CQL loss if requested
+        if self.add_cql_loss:
+            q_t_logsumexp_nr = torch.logsumexp(qa_t_values_nar, dim=1)
+            cql_loss = torch.mean(q_t_logsumexp_nr - q_t_values_nr)
+            loss = self.cql_alpha * cql_loss + loss
+
+        # Step the optimizer
         self.optimizer.zero_grad()
         loss.backward()
         utils.clip_grad_value_(self.q_net.parameters(), self.grad_norm_clipping)
@@ -474,6 +500,13 @@ class ExtendedMDQNCritic(DQNCritic):
 
         loss = self.loss(q_t_values_nre, target_nre)
 
+        # Add CQL loss if requested
+        if self.add_cql_loss:
+            q_t_logsumexp_nre = torch.logsumexp(qa_t_values_nare, dim=1)
+            cql_loss = torch.mean(q_t_logsumexp_nre - q_t_values_nre)
+            loss = self.cql_alpha * cql_loss + loss
+
+        # Step the optimizer
         self.optimizer.zero_grad()
         loss.backward()
         utils.clip_grad_value_(self.q_net.parameters(), self.grad_norm_clipping)

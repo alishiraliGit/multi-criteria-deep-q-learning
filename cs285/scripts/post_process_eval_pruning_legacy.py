@@ -13,7 +13,7 @@ if __name__ == "__main__":
     if not (os.path.exists(fig_path_)):
         os.makedirs(fig_path_)
 
-    exp_name_ = 'v2_offline_cmdqn_eval'
+    exp_name_ = 'v2_offline_cmdqn_alpha1.0_cql0.2_100k_test_eval'
 
     all_folders_ = glob.glob(os.path.join(data_path_, exp_name_ + '*'))
     if len(all_folders_) > 1:
@@ -80,5 +80,5 @@ if __name__ == "__main__":
 
     print("Mean and std of pareto set accuracy by pareto-set size")
 
-    print(results_df_grouped_mean.head(6))
-    print(results_df_grouped_std.head(6))
+    print(results_df_grouped_mean.head(25))
+    print(results_df_grouped_std.head(25))

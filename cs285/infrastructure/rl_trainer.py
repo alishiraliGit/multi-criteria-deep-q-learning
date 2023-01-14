@@ -501,6 +501,8 @@ class RLTrainer(object):
         rho = np.corrcoef(all_rtgs, all_q_values)[0, 1]
         rho_mort = np.corrcoef(all_rtgs_mort, all_q_values)[0, 1]
 
+        avg_q = np.mean(all_q_values)
+
         # Run for train set
 
         all_q_values = []
@@ -541,14 +543,19 @@ class RLTrainer(object):
         rho_train = np.corrcoef(all_rtgs, all_q_values)[0, 1]
         rho_train_mort = np.corrcoef(all_rtgs_mort, all_q_values)[0, 1]
 
+        avg_q_train = np.mean(all_q_values)
+
         # save eval metrics
         if self.log_metrics:
             # decide what to log
             logs = OrderedDict()
             logs['Rho'] = rho
             logs['Rho_mort'] = rho_mort
+            logs['Avg Q'] = avg_q
+
             logs['Rho_train'] = rho_train
             logs['Rho_mort_train'] = rho_train_mort
+            logs['Avg Q train'] = avg_q_train
             logs['TimeSinceStart'] = time.time() - self.start_time
             logs["Train_itr"] = itr
             logs.update(last_log)

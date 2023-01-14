@@ -75,12 +75,12 @@ command_stem = [
 "python cs285/scripts/run_dqn.py --exp_name pCQLvdl_{eps}ep --env_name MIMIC --pruning_file_prefix MIMICCQL_ --pruning_eps {e} --env_rew_weights 1 0 0 0 0 0 0 0 0 0 0 --double_q --seed 1 --scalar_log_freq 2000 --params_log_freq 2000 --offline --cql --no_weights_in_path --buffer_path './Replay_buffer_extraction/Encoded_paths3_all_rewards.pkl'"
 ]
 
-eps_list = [0.1,0.3]
+alpha_list = [0.1,0.3]
 
 commands = []
 for command in command_stem:
-    for i in range(len(eps_list)):
-        commands.append(command.format(eps=int(eps_list[i]*100), e=eps_list[i]))
+    for i in range(len(alpha_list)):
+        commands.append(command.format(eps=int(alpha_list[i]*100), e=alpha_list[i]))
 
 if __name__ == "__main__":
     for command in commands:

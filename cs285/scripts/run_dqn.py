@@ -60,6 +60,7 @@ def main():
     parser.add_argument('--w_bound', type=float, default=0.5, help='Look at draw_w in linearly_weighted_argmax_policy.')
 
     # CQL
+    parser.add_argument('--add_cql_loss', action='store_true', help='Adds CQL loss to MDQN and EMDQN.')
     parser.add_argument('--cql', action='store_true')
     parser.add_argument('--cql_alpha', type=float, default=0.2, help='Higher values indicated stronger OOD penalty.')
 
