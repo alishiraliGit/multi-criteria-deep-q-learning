@@ -75,7 +75,7 @@ if __name__ == '__main__':
 
     prefix_ = params['prefix']
     
-    folder_paths_ = glob.glob(os.path.join(load_path_, params['prefix'] + '*'))
+    folder_paths_ = sorted(glob.glob(os.path.join(load_path_, params['prefix'] + '*')), key=os.path.getmtime)
 
     file_paths_ = [glob.glob(os.path.join(f, 'events*'))[0] for f in folder_paths_]
 
@@ -112,7 +112,7 @@ if __name__ == '__main__':
     for cnt_ in range(len(xs_)):
         plt.plot(xs_[cnt_], ys_[cnt_])
 
-    plt.legend(["".join(f.split('_')[1:2]) for f in folder_paths_]) #join 2 elements of string
+    plt.legend(['_'.join(f.split('_')[1:]) for f in folder_paths_]) #join 2 elements of string
 
     #plt.xlabel('#time steps')
     #plt.ylabel('avg return')
