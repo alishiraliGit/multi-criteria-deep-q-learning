@@ -157,12 +157,12 @@ def main():
             pruner = IDQNPruner(pruning_eps=params['pruning_eps'], saved_dqn_critics_paths=pruning_file_paths)
 
         elif prune_with_mdqn:
-            assert len(pruning_folder_paths) == 1
+            assert len(pruning_folder_paths) == 1, 'found %d files!' % len(pruning_folder_paths)
             pruning_file_path = os.path.join(pruning_folder_paths[0], 'dqn_agent.pt')
             pruner = MDQNPruner(n_draw=params['pruning_n_draw'], file_path=pruning_file_path)
 
         elif prune_with_emdqn:
-            assert len(pruning_folder_paths) == 1
+            assert len(pruning_folder_paths) == 1, 'found %d files!' % len(pruning_folder_paths)
             pruning_file_path = os.path.join(pruning_folder_paths[0], 'dqn_agent.pt')
             pruner = ExtendedMDQNPruner(n_draw=params['pruning_n_draw'], file_path=pruning_file_path)
 

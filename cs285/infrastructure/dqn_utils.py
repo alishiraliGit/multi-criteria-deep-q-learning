@@ -158,7 +158,7 @@ def get_env_kwargs(env_name):
             'target_update_freq': 3000,
             'grad_norm_clipping': 10,
             'lander': False,
-            'num_timesteps': 50001,  # default: 70000
+            'num_timesteps': 80001,  # default: 70000
             'env_wrappers': empty_wrapper,
             'exploration_schedule': None,
         }
@@ -218,7 +218,7 @@ def lander_exploration_schedule(num_timesteps):
 ###################
 
 def create_mimic_q_network(ob_dim, num_actions, num_rewards=1, ex_dim=1):
-    d = 8
+    d = 64
     if ex_dim > 1:
         output_layer = ptu.MultiDimLinear(d, (num_actions, num_rewards, ex_dim))
     else:
