@@ -108,12 +108,20 @@ def plot_binned_mortality(eval_paths, params, critic, folder_path="test"):
 
     plot_centers = (bins[:-1] + bins[1:]) / 2
     plot_values = group.survive.mean().fillna(0)
+    plot_ci = (group.survive.std() / np.sqrt(group.survive.count())).fillna(0)
     plot_range = group.survive.std().fillna(0)
+
+    indices = group.survive.count() > 20
+    plot_centers = plot_centers[indices]
+    plot_values = plot_values[indices]
+    plot_ci = plot_ci[indices]
+    plot_range = plot_range[indices]
 
     plt.plot(plot_centers, plot_values)
 
     # 1 std around mean per bin
     plt.fill_between(plot_centers, plot_values - plot_range, plot_values + plot_range, color="b", alpha=0.2)
+    plt.fill_between(plot_centers, plot_values - plot_ci, plot_values + plot_ci, color="r", alpha=0.2)
 
     plt.ylabel('Survival rate')
     plt.xlabel('Mean Q-value per trajectory')

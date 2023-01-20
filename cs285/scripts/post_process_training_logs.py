@@ -79,6 +79,8 @@ if __name__ == '__main__':
 
     file_paths_ = [glob.glob(os.path.join(f, 'events*'))[0] for f in folder_paths_]
 
+    print([f.split(os.sep)[-1] for f in folder_paths_])
+
     #Adding result of baseline sparse DQN if needed
     if params['baseline_model'] is not None:
         prefix_b = params['baseline_model']
