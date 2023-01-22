@@ -114,7 +114,7 @@ if __name__ == '__main__':
     for cnt_ in range(len(xs_)):
         plt.plot(xs_[cnt_], ys_[cnt_])
 
-    plt.legend(['_'.join(f.split('_')[1:]) for f in folder_paths_]) #join 2 elements of string
+    plt.legend(['_'.join(f.split('_')) for f in folder_paths_]) #join 2 elements of string
 
     #plt.xlabel('#time steps')
     #plt.ylabel('avg return')
