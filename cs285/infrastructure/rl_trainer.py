@@ -6,6 +6,7 @@ import time
 import gym
 from gym import wrappers
 import numpy as np
+from scipy.stats import spearmanr
 import torch
 from sklearn.model_selection import train_test_split
 
@@ -15,6 +16,7 @@ from cs285.infrastructure import utils
 from cs285.infrastructure.logger import Logger
 from cs285.agents.dqn_agent import DQNAgent
 from cs285.infrastructure.dqn_utils import register_custom_envs
+from cs285.pruners.dqn_pruner import MDQNPruner, ExtendedMDQNPruner
 
 # How many rollouts to save as videos to tensorboard
 MAX_NVIDEO = 2
@@ -137,6 +139,8 @@ class RLTrainer(object):
             if self.params['env_name'] == 'MIMIC':
                 all_paths = utils.format_reward(all_paths, weights=params['env_rew_weights'], multi=False)
             elif self.params['env_name'] == 'MIMIC-MultiInterReward':
+                all_paths = utils.format_reward(all_paths, multi_inter=True)
+            elif self.params['env_name'] == 'MIMIC-MultiReward':
                 all_paths = utils.format_reward(all_paths, multi=True)
             else:
                 raise Exception('Invalid env_name!')
@@ -265,7 +269,10 @@ class RLTrainer(object):
                     if not self.offline:
                         self.perform_dqn_logging(all_logs)
                     else:
-                        self.perform_dqn_offline_logging(itr, paths, test_paths, all_logs)
+                        if self.agent.mdqn or self.agent.emdqn:
+                            self.perform_mdqn_offline_logging(itr, paths, test_paths, all_logs)
+                        else:
+                            self.perform_dqn_offline_logging(itr, paths, test_paths, all_logs)
                 else:
                     self.perform_logging(itr, paths, eval_policy, train_video_paths, all_logs)
 
@@ -498,8 +505,10 @@ class RLTrainer(object):
         all_rtgs = np.concatenate(all_rtgs, axis=0)
         all_rtgs_mort = np.concatenate(all_rtgs_mort, axis=0)
 
-        rho = np.corrcoef(all_rtgs, all_q_values)[0, 1]
-        rho_mort = np.corrcoef(all_rtgs_mort, all_q_values)[0, 1]
+        # noinspection PyTypeChecker, PyUnresolvedReferences
+        rho = spearmanr(all_rtgs, all_q_values).correlation
+        # noinspection PyTypeChecker, PyUnresolvedReferences
+        rho_mort = spearmanr(all_rtgs_mort, all_q_values).correlation
 
         avg_q = np.mean(all_q_values)
 
@@ -540,8 +549,10 @@ class RLTrainer(object):
         all_rtgs = np.concatenate(all_rtgs, axis=0)
         all_rtgs_mort = np.concatenate(all_rtgs_mort, axis=0)
 
-        rho_train = np.corrcoef(all_rtgs, all_q_values)[0, 1]
-        rho_train_mort = np.corrcoef(all_rtgs_mort, all_q_values)[0, 1]
+        # noinspection PyTypeChecker, PyUnresolvedReferences
+        rho_train = spearmanr(all_rtgs, all_q_values).correlation
+        # noinspection PyTypeChecker, PyUnresolvedReferences
+        rho_train_mort = spearmanr(all_rtgs_mort, all_q_values).correlation
 
         avg_q_train = np.mean(all_q_values)
 
@@ -557,7 +568,7 @@ class RLTrainer(object):
             logs['Rho_mort_train'] = rho_train_mort
             logs['Avg Q train'] = avg_q_train
             logs['TimeSinceStart'] = time.time() - self.start_time
-            logs["Train_itr"] = itr
+            logs['Train_itr'] = itr
             logs.update(last_log)
 
             # Perform the logging
@@ -567,3 +578,67 @@ class RLTrainer(object):
             print('Done logging...\n\n')
 
             self.logger.flush()
+
+    def perform_mdqn_offline_logging(self, itr, train_paths, eval_paths, all_logs):
+
+        last_log = all_logs[-1]
+
+        if len(last_log) == 0:
+            return
+
+        # Get the pruner
+        if self.agent.mdqn:
+            pruner = MDQNPruner(n_draw=self.params['pruning_n_draw'], critic=self.agent.critic)
+        elif self.agent.emdqn:
+            pruner = ExtendedMDQNPruner(n_draw=self.params['pruning_n_draw'], critic=self.agent.critic)
+        else:
+            raise NotImplementedError
+
+        # Run on the test set
+        all_prob_ac_is_available = []
+        all_num_available = []
+        all_rtg_pruned = []
+        all_rtg_available = []
+        for eval_path in eval_paths:
+            obs_n = eval_path['observation']
+            if obs_n.ndim == 1:
+                obs_n = obs_n[:, np.newaxis]
+
+            # Check action is included
+            ac_n = eval_path['action'].astype(int)
+            available_acs_n = pruner.get_list_of_available_actions(obs_n)
+            ac_is_available = [(ac in available_acs_n[i_ac]) for i_ac, ac in enumerate(ac_n)]
+
+            all_prob_ac_is_available.append(np.mean(ac_is_available))
+            all_num_available.extend([len(available_acs) for available_acs in available_acs_n])
+
+            # Compare pruned and remained actions based on rtg
+            re_mort_n = eval_path['sparse_90d_rew']
+            rtg_mort_n = utils.discounted_cumsum(re_mort_n, self.params['gamma'])
+
+            for i_ac, ac in enumerate(ac_n):
+                if ac in available_acs_n[i_ac]:
+                    all_rtg_available.append(rtg_mort_n[i_ac])
+                else:
+                    all_rtg_pruned.append(rtg_mort_n[i_ac])
+
+        # Decide what to log
+        logs = OrderedDict()
+        logs['Recall'] = np.mean(all_prob_ac_is_available)
+        logs['Avg_Num_Available_Actions'] = np.mean(all_num_available)
+        logs['RTG_Available_Actions'] = np.mean(all_rtg_available)
+        logs['RTG_Pruned_Actions'] = np.mean(all_rtg_pruned)
+        logs['RTG_Available_to_Pruned_Ratio'] = logs['RTG_Available_Actions'] / logs['RTG_Pruned_Actions']
+
+        # Save eval metrics
+        logs['TimeSinceStart'] = time.time() - self.start_time
+        logs['Train_itr'] = itr
+        logs.update(last_log)
+
+        # Perform the logging
+        for key, value in logs.items():
+            print('{} : {}'.format(key, value))
+            self.logger.log_scalar(value, key, itr)
+        print('Done logging...\n\n')
+
+        self.logger.flush()

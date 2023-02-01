@@ -44,7 +44,7 @@ def main():
     parser.add_argument('--prune_with_mdqn', action='store_true')
     parser.add_argument('--prune_with_emdqn', action='store_true')
     parser.add_argument('--pruning_eps', type=float, default=0., help='Look at pareto_opt_pruner.')
-    parser.add_argument('--pruning_n_draw', type=int, default=20, help='Look at random_pruner.')
+    parser.add_argument('--pruning_n_draw', type=int, default=100, help='Look at random_pruner.')
 
     # MDQN
     parser.add_argument('--optimistic_mdqn', action='store_true')

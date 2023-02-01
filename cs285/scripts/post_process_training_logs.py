@@ -112,9 +112,12 @@ if __name__ == '__main__':
     plt.figure(figsize=(5, 4))
 
     for cnt_ in range(len(xs_)):
-        plt.plot(xs_[cnt_], ys_[cnt_])
+        try:
+            plt.plot(xs_[cnt_], ys_[cnt_])
+        except ValueError:
+            plt.plot(xs_[cnt_][1:], ys_[cnt_])
 
-    plt.legend(['_'.join(f.split('_')) for f in folder_paths_]) #join 2 elements of string
+    plt.legend([f.split(os.sep)[-1].split('-')[0] for f in folder_paths_]) #join 2 elements of string
 
     #plt.xlabel('#time steps')
     #plt.ylabel('avg return')

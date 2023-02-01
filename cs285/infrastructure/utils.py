@@ -339,7 +339,7 @@ def sample_random_trajectories(env, min_timesteps_per_batch, max_path_length, re
 ############################################
 ############################################
 
-def format_reward(paths, weights=None, multi=False):
+def format_reward(paths, weights=None, multi_inter=False, multi=False):
     """
     Path structure is :
     #   'sparse_90d_rew', 'Reward_matrix_paper',
@@ -355,9 +355,26 @@ def format_reward(paths, weights=None, multi=False):
 
     new_paths = []
     for path in paths:
-        if multi:
+        if multi_inter:
             path['reward'] = np.stack(
                 [
+                    path['Reward_matrix_paper'],
+                    path['Reward_SOFA_1_continous'],
+                    path['Reward_SOFA_1_binary'],
+                    path['Reward_SOFA_2_continous'],
+                    path['Reward_SOFA_2_binary'],
+                    path['Reward_SOFA_change2_binary'],
+                    path['Reward_lac_1_continous'],
+                    path['Reward_lac_1_binary'],
+                    path['Reward_lac_2_continous'],
+                    path['Reward_lac_2_binary']
+                ],
+                axis=1
+            )
+        elif multi:
+            path['reward'] = np.stack(
+                [
+                    path['sparse_90d_rew'],
                     path['Reward_matrix_paper'],
                     path['Reward_SOFA_1_continous'],
                     path['Reward_SOFA_1_binary'],

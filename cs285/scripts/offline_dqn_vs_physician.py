@@ -102,8 +102,9 @@ def plot_binned_mortality(eval_paths, params, critic, folder_path="test"):
     print(traj_info.describe())
 
     # create the binned plot
+    plt.figure()
 
-    bins = np.linspace(np.min(traj_info['mean_q']), np.max(traj_info['mean_q']), 100)
+    bins = np.linspace(np.maximum(np.min(traj_info['mean_q']), 0), np.max(traj_info['mean_q']), 25)
     group = traj_info.groupby(pd.cut(traj_info.mean_q, bins))
 
     plot_centers = (bins[:-1] + bins[1:]) / 2
@@ -111,7 +112,7 @@ def plot_binned_mortality(eval_paths, params, critic, folder_path="test"):
     plot_ci = (group.survive.std() / np.sqrt(group.survive.count())).fillna(0)
     plot_range = group.survive.std().fillna(0)
 
-    indices = group.survive.count() > 20
+    indices = group.survive.count() > 3
     plot_centers = plot_centers[indices]
     plot_values = plot_values[indices]
     plot_ci = plot_ci[indices]
@@ -284,7 +285,7 @@ if __name__ == "__main__":
     all_paths = utils.format_reward(all_paths, params['env_rew_weights'])
 
     # Let's use 5% as validation set and 15% as hold-out set
-    paths, test_paths = train_test_split(all_paths, test_size=0.15, random_state=params['seed'])
+    paths, test_paths = train_test_split(all_paths, test_size=0.05, random_state=params['seed'])
 
     critic_file_name = [path.split(os.sep)[-2] for path in critic_file_path]
     print(critic_file_name)

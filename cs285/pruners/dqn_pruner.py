@@ -8,8 +8,13 @@ from cs285.critics.dqn_critic import MDQNCritic, ExtendedMDQNCritic
 
 
 class MDQNPruner(BasePruner):
-    def __init__(self, file_path, n_draw):
-        self.mdqn_critic = MDQNCritic.load(file_path)
+    def __init__(self, n_draw, file_path=None, critic=None):
+        assert (file_path is not None) ^ (critic is not None)
+        if file_path is not None:
+            self.mdqn_critic = MDQNCritic.load(file_path)
+        else:
+            self.mdqn_critic = critic
+
         actor = self.mdqn_critic.get_actor_class()(self.mdqn_critic)
         self.random_pruner = RandomPruner(actor, n_draw=n_draw)
 
@@ -18,8 +23,13 @@ class MDQNPruner(BasePruner):
 
 
 class ExtendedMDQNPruner(BasePruner):
-    def __init__(self, file_path, n_draw):
-        self.emdqn_critic = ExtendedMDQNCritic.load(file_path)
+    def __init__(self, n_draw, file_path=None, critic=None):
+        assert (file_path is not None) ^ (critic is not None)
+        if file_path is not None:
+            self.emdqn_critic = ExtendedMDQNCritic.load(file_path)
+        else:
+            self.emdqn_critic = critic
+
         actor = self.emdqn_critic.get_actor_class()(self.emdqn_critic)
         self.random_pruner = RandomPruner(actor, n_draw=n_draw)
 

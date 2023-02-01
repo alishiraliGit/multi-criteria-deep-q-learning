@@ -36,10 +36,10 @@ class DQNAgent(object):
             self.num_actions = agent_params['ac_dim']
 
         # Pruning
-        prune = True if 'action_pruner' in agent_params else False
+        self.prune = True if 'action_pruner' in agent_params else False
 
         # Actor/Critic
-        if prune:
+        if self.prune:
             if self.cql:
                 self.critic = PrunedCQLCritic(agent_params, self.optimizer_spec, agent_params['action_pruner'])
                 self.actor = PrunedArgMaxPolicy(self.critic, agent_params['action_pruner'])
@@ -94,7 +94,12 @@ class DQNAgent(object):
         # Use epsilon greedy exploration when selecting action
         perform_random_action = (np.random.random() < eps) or (self.t < self.learning_starts)
         if perform_random_action:
-            action = self.env.action_space.sample()
+            if self.prune:
+                frames = self.replay_buffer.encode_recent_observation()
+                available_acs = self.actor.action_pruner.get_list_of_available_actions(frames)[0]
+                action = np.random.choice(available_acs)
+            else:
+                action = self.env.action_space.sample()
         else:
             # HINT: Your actor will take in multiple previous observations ('frames') in order
             # to deal with the partial observability of the environment. Get the most recent 
