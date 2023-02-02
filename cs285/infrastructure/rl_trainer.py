@@ -46,6 +46,7 @@ class RLTrainer(object):
         self.log_video = None
         self.log_metrics = None
         self.log_params = None
+        self.best_performance = 0
 
         #############
         # ENV
@@ -262,6 +263,7 @@ class RLTrainer(object):
             all_logs = self.train_agent()
 
             # Log/save
+            performance = 0
             if self.log_video or self.log_metrics:
                 # Perform logging
                 print('\nBeginning logging procedure...')
@@ -270,16 +272,21 @@ class RLTrainer(object):
                         self.perform_dqn_logging(all_logs)
                     else:
                         if self.agent.mdqn or self.agent.emdqn:
-                            self.perform_mdqn_offline_logging(itr, paths, test_paths, all_logs)
+                            performance = self.perform_mdqn_offline_logging(itr, paths, test_paths, all_logs)
                         else:
-                            self.perform_dqn_offline_logging(itr, paths, test_paths, all_logs)
+                            performance = self.perform_dqn_offline_logging(itr, paths, test_paths, all_logs)
                 else:
                     self.perform_logging(itr, paths, eval_policy, train_video_paths, all_logs)
 
             if self.log_params:
                 if isinstance(self.agent, DQNAgent):
-                    save_path = '{}/dqn_agent.pt'.format(self.params['logdir'])
-                    self.agent.critic.save(save_path)
+                    if (not self.params['save_best']) \
+                            or (self.params['save_best'] and (performance >= self.best_performance)):
+                        save_path = '{}/dqn_agent.pt'.format(self.params['logdir'])
+                        self.agent.critic.save(save_path)
+
+                        if performance >= self.best_performance:
+                            self.best_performance = performance
                 else:
                     raise NotImplementedError
 
@@ -467,7 +474,7 @@ class RLTrainer(object):
         last_log = all_logs[-1]
 
         if len(last_log) == 0:
-            return
+            return 0
 
         # Run for test set
         all_q_values = []
@@ -579,12 +586,14 @@ class RLTrainer(object):
 
             self.logger.flush()
 
-    def perform_mdqn_offline_logging(self, itr, train_paths, eval_paths, all_logs):
+            return rho_mort
+
+    def perform_mdqn_offline_logging(self, itr, _train_paths, eval_paths, all_logs):
 
         last_log = all_logs[-1]
 
         if len(last_log) == 0:
-            return
+            return 0
 
         # Get the pruner
         if self.agent.mdqn:
@@ -642,3 +651,5 @@ class RLTrainer(object):
         print('Done logging...\n\n')
 
         self.logger.flush()
+
+        return logs['RTG_Available_Actions']

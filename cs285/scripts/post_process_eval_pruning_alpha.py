@@ -390,7 +390,7 @@ if __name__ == "__main__":
     for flagged, non_flagged in zip(flagged_dfs, non_flagged_dfs):
 
         plt.hist(flagged['q_traj'], bins, density=True, alpha=0.5, label='Traj with pareto set actions')
-        plt.hist(non_flagged['q_traj'], bins, density=True, alpha=0.5, label='Only non-pareto-set actions in traj')
+        plt.hist(non_flagged['q_traj'], int(bins/2), density=True, alpha=0.5, label='Only non-pareto-set actions in traj')
         plt.ylabel('Probability')
         plt.xlabel('Mean Q-value per trajectory')
         plt.title(f'Mean Q-value per traj histogram alpha={alpha_list_sorted[i]}')
