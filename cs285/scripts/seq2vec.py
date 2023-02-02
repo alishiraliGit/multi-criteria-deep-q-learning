@@ -34,7 +34,8 @@ if __name__ == '__main__':
     sentences_ = get_sentences_from_paths(paths_)
 
     # Train word2vec
-    model_ = Word2Vec(sentences=sentences_, vector_size=3, window=3, min_count=10, epochs=5)
+    model_ = Word2Vec(sentences=sentences_, vector_size=13, window=3, min_count=10, epochs=5)
+    #model_ = Word2Vec(sentences=sentences_, vector_size=3, window=3, min_count=10, epochs=5) #original
 
     # Extract vectors
     new_paths_ = []
@@ -54,7 +55,7 @@ if __name__ == '__main__':
     print('%.2f%% of paths reconstructed.' % (100*len(new_paths_)/len(paths_)))
 
     # Save new paths
-    new_data_name_ = data_name_.replace('Paths', 'Encoded_paths3')
+    new_data_name_ = data_name_.replace('Paths', 'Encoded_paths13')
 
     with open(os.path.join(data_folder_, new_data_name_), 'wb') as f_:
         pickle.dump(new_paths_, f_)

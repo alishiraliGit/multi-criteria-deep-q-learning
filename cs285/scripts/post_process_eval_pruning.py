@@ -1,4 +1,6 @@
 import os
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
+
 import pickle
 import glob
 import pandas as pd
@@ -7,25 +9,51 @@ import statistics
 import argparse
 from collections import Counter
 
+from tqdm import tqdm
+import torch
 import numpy as np
+from sklearn.model_selection import train_test_split
+
+from cs285.policies.argmax_policy import ArgMaxPolicy, PrunedArgMaxPolicy
+from cs285.critics.dqn_critic import DQNCritic, MDQNCritic, ExtendedMDQNCritic, PrunedDQNCritic
+from cs285.critics.cql_critic import CQLCritic, PrunedCQLCritic
+from cs285.pruners.independent_dqns_pruner import IDQNPruner, ICQLPruner
+from cs285.pruners.dqn_pruner import MDQNPruner, ExtendedMDQNPruner
+from cs285.infrastructure import pytorch_util as ptu
+from cs285.infrastructure import utils
 
 # import tensorflow as tf
 
+def tag_in_dict(file,tag):
+    # load pickle file
+    with open(file, 'rb') as f:
+        actions_dict_ = pickle.load(f)
+    
+    result = tag in actions_dict_.keys()
+    return result
 
-def get_action_set_data(file, tag):
+
+
+def get_action_set_data(file, tag, printing=False, convert_to_list = False):
+    
     # load pickle file
     with open(file, 'rb') as f:
         actions_dict_ = pickle.load(f)
 
     # get actions for tag
+    #print(actions_dict_.keys())
     actions = actions_dict_[tag]
-
-    print(actions[0])
-
-    # Merge all trajectories
+    
+     # Merge all trajectories
     action_set = []
     for actions_per_path in actions:
+        if convert_to_list:
+            actions_per_path = list(actions_per_path)
+        if printing:
+            print(actions_per_path)
+            print(type(actions_per_path))
         action_set += actions_per_path
+        
 
     return action_set
 
@@ -69,6 +97,315 @@ def get_q_per_traj(file, tag='mortality_rtg'):
     q_traj = [(sum(q) / len(q)) for q in q_vals]
     return q_traj
 
+def get_non_pareto_actions(pareto_action_sets):
+    all_actions = list(range(25))
+    pruned_action_sets = []
+    for actions_sets in pareto_action_sets:
+        pruned_action_set = []
+        for pareto_set in tqdm(actions_sets):
+            non_pareto_set = [action for action in all_actions if action not in pareto_set]
+            pruned_action_set.append(non_pareto_set)
+        pruned_action_sets.append(pruned_action_set)
+    return pruned_action_sets
+
+def unpack_actions(action_sets):
+    save_list = []
+    for action_set in action_sets:
+        save_list += action_set
+    return save_list
+
+def plot_action_dist(phys_actions, pareto_actions, non_pareto_actions, eps='None',folderpath = "No path", figurepath=os.getcwd()):
+    
+    """    
+    plt.hist(phys_actions, bins=25)
+    plt.title("Actions selected by physician")
+    plt.xlabel("Action number")
+    plt.ylabel("Frequency")
+    plt.show()
+    """
+
+    # Create action map
+    inv_action_map = {}
+    count = 0
+    for i in range(5):
+        for j in range(5):
+            inv_action_map[count] = [i,j]
+            count += 1
+    
+    #Create action tuple files
+    phys_actions_tuple = [None for i in range(len(phys_actions))]
+    pareto_actions_tuple = [None for i in range(len(pareto_actions))]
+    non_pareto_actions_tuple = [None for i in range(len(non_pareto_actions))]                                          
+
+    for i in range(len(phys_actions)):
+        phys_actions_tuple[i] = inv_action_map[phys_actions[i]]
+
+    for i in range(len(pareto_actions)):
+        pareto_actions_tuple[i] = inv_action_map[pareto_actions[i]]
+
+    for i in range(len(non_pareto_actions)):
+        non_pareto_actions_tuple[i] = inv_action_map[non_pareto_actions[i]]
+
+    #convert to array
+    phys_actions_tuple = np.array(phys_actions_tuple)
+    pareto_actions_tuple = np.array(pareto_actions_tuple)
+    non_pareto_actions_tuple = np.array(non_pareto_actions_tuple)
+
+    #Create 2d histogram data for each group
+
+    phys_actions_iv = phys_actions_tuple[:,0]
+    phys_actions_vaso = phys_actions_tuple[:,1]
+    hist, x_edges, y_edges = np.histogram2d(phys_actions_iv, phys_actions_vaso, bins=5)
+
+    pareto_actions_iv = pareto_actions_tuple[:,0]
+    pareto_actions_vaso = pareto_actions_tuple[:,1]
+    hist2, _, _ = np.histogram2d(pareto_actions_iv, pareto_actions_vaso, bins=5)
+
+    non_pareto_actions_iv = non_pareto_actions_tuple[:,0]
+    non_pareto_actions_vaso = non_pareto_actions_tuple[:,1]
+    hist3, _, _ = np.histogram2d(non_pareto_actions_iv, non_pareto_actions_vaso, bins=5)
+
+    #Relabel edges 
+    x_edges = np.arange(-0.5,5)
+    y_edges = np.arange(-0.5,5)
+
+    #Plot distributions
+
+    f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(16,4))
+    ax1.imshow(np.flipud(hist), cmap="Blues",extent=[x_edges[0], x_edges[-1],  y_edges[0],y_edges[-1]])
+    ax2.imshow(np.flipud(hist2), cmap="OrRd", extent=[x_edges[0], x_edges[-1],  y_edges[0],y_edges[-1]])
+    ax3.imshow(np.flipud(hist3), cmap="Greens", extent=[x_edges[0], x_edges[-1],  y_edges[0],y_edges[-1]])
+
+    # ax1.grid(color='b', linestyle='-', linewidth=1)
+    # ax2.grid(color='r', linestyle='-', linewidth=1)
+    # ax3.grid(color='g', linestyle='-', linewidth=1)
+
+    # Major ticks
+    ax1.set_xticks(np.arange(0, 5, 1));
+    ax1.set_yticks(np.arange(0, 5, 1));
+    ax2.set_xticks(np.arange(0, 5, 1));
+    ax2.set_yticks(np.arange(0, 5, 1));
+    ax3.set_xticks(np.arange(0, 5, 1));
+    ax3.set_yticks(np.arange(0, 5, 1));
+
+    # Labels for major ticks
+    ax1.set_xticklabels(np.arange(0, 5, 1));
+    ax1.set_yticklabels(np.arange(0, 5, 1));
+    ax2.set_xticklabels(np.arange(0, 5, 1));
+    ax2.set_yticklabels(np.arange(0, 5, 1));
+    ax3.set_xticklabels(np.arange(0, 5, 1));
+    ax3.set_yticklabels(np.arange(0, 5, 1));
+
+    # Minor ticks
+    ax1.set_xticks(np.arange(-.5, 5, 1), minor=True);
+    ax1.set_yticks(np.arange(-.5, 5, 1), minor=True);
+    ax2.set_xticks(np.arange(-.5, 5, 1), minor=True);
+    ax2.set_yticks(np.arange(-.5, 5, 1), minor=True);
+    ax3.set_xticks(np.arange(-.5, 5, 1), minor=True);
+    ax3.set_yticks(np.arange(-.5, 5, 1), minor=True);
+
+    # Gridlines based on minor ticks
+    ax1.grid(which='minor', color='b', linestyle='-', linewidth=1)
+    ax2.grid(which='minor', color='g', linestyle='-', linewidth=1)
+    ax3.grid(which='minor', color='r', linestyle='-', linewidth=1)
+
+    im1 = ax1.pcolormesh(x_edges, y_edges, hist, cmap='Blues')
+    f.colorbar(im1, ax=ax1, label = "Action counts")
+
+    im2 = ax2.pcolormesh(x_edges, y_edges, hist2, cmap='Greens')
+    f.colorbar(im2, ax=ax2, label = "Action counts")
+
+    im3 = ax3.pcolormesh(x_edges, y_edges, hist3, cmap='OrRd')
+    f.colorbar(im3, ax=ax3, label = "Action counts")
+
+    ax1.set_ylabel('IV fluid dose')
+    ax2.set_ylabel('IV fluid dose')
+    ax3.set_ylabel('IV fluid dose')
+    ax1.set_xlabel('Vasopressor dose')
+    ax2.set_xlabel('Vasopressor dose')
+    ax3.set_xlabel('Vasopressor dose')
+
+    ax1.set_title("Physician policy")
+    ax2.set_title("RL policy actions")
+    ax3.set_title("Non pareto-set actions")
+
+    f.suptitle(f'Action distribution eps = {eps}')
+    plt.tight_layout()
+
+    if params['save']:
+        plt.savefig(os.path.join(fig_path_, folderpath + '_action_dist_phy_rl_prun.pdf'))
+
+    if params['show']:
+        plt.show()
+
+def run_offline_policy_eval( eval_pruner, n_iter=1, eval_policy=None, buffer_path=None, pruning_critic=None, gamma = 1):
+    # TODO: Hard-coded
+    print_period = 1
+
+    opt_actions = []
+    policy_actions = []
+    pruned_actions = []
+    action_flags = []
+
+    all_q_values = []
+    all_rtgs = []
+
+    if buffer_path is not None:
+        # Load replay buffer data
+        with open(buffer_path, 'rb') as f:
+            all_paths = pickle.load(f)
+        all_paths = utils.format_reward(all_paths, params['env_rew_weights'])
+        # Evaluate on 5% hold-out set
+        _, paths = train_test_split(all_paths, test_size=0.05, random_state=params['seed'])
+        n_iter = 1
+
+    for itr in range(n_iter):
+        if itr % print_period == 0:
+            print("\n\n********** Iteration %i ************" % itr)
+
+        # Collect trajectories
+        # Not implemented for online learning / better eval approach exists as part of training process
+        """
+        if buffer_path is None:
+            paths, envsteps_this_batch = utils.sample_trajectories(
+                self.env,
+                opt_policy,
+                min_timesteps_per_batch=self.params['batch_size'],
+                max_path_length=self.params['ep_len'],
+                render=False
+            )
+        """
+
+        # Get optimal actions, pruned_actions and policy actions
+        for path in tqdm(paths):
+            # get actions
+            opt_actions.append(path['action'].astype(int).tolist())
+
+            # get pareto action sets per traj
+            pareto_actions = eval_pruner.get_list_of_available_actions(path['observation'])
+            pruned_actions.append(pareto_actions)
+
+            # Flag if action not in pareto-set
+            flags = [1 if path['action'][i] in pareto_actions[i] else 0 for i in range(len(path['action']))]
+            action_flags.append(flags)
+
+            # Get reward to go (and transform to mortality indicator, assummes Gamma == 1)
+            rtg_n = utils.discounted_cumsum(path['reward'],
+                                            gamma) / 100  # to make this a mortality indicator
+            rtg_n = (rtg_n + 1) / 2
+            all_rtgs.append(rtg_n)
+
+            # Get Q-values
+            if pruning_critic is not None:
+                qa_values_na = pruning_critic.qa_values(path['observation'])
+
+                qa_values_na = ptu.from_numpy(qa_values_na)
+                ac_n = ptu.from_numpy(path['action']).to(torch.long)
+                q_values_n = torch.gather(qa_values_na, 1, ac_n.unsqueeze(1)).squeeze(1)
+                q_values_n = list(ptu.to_numpy(q_values_n))
+                # print(q_values_n)
+                all_q_values.append(q_values_n)
+            
+            #Get policy recommeded actions
+            if eval_policy is not None:
+                traj_actions = []
+                for ob in path['observation']:
+                    ac_n_policy = eval_policy.get_action(ob)
+                    traj_actions.append(ac_n_policy)
+                policy_actions.append(traj_actions)
+
+    # Log/save
+    # Not implemented for now
+    """
+    with open(os.path.join(self.log_dir, 'actions.pkl'), 'wb') as f:
+        if pruning_critic is not None:
+            pickle.dump({'opt_actions': opt_actions, 'pruned_actions': pruned_actions, 'action_flags': action_flags,
+                            'mortality_rtg': all_rtgs, 'q_vals': all_q_values}, f)
+        else:
+            pickle.dump({'opt_actions': opt_actions, 'pruned_actions': pruned_actions, 'action_flags': action_flags,
+                            'mortality_rtg': all_rtgs}, f)
+    """
+    output = {'opt_actions': opt_actions, 'pruned_actions': pruned_actions, 'action_flags': action_flags,
+                            'mortality_rtg': all_rtgs, 'policy_actions': policy_actions}
+
+    return output
+
+def survival_by_policy_adherence(phys_actions,policy_actions,mortality,eps, print_df=False):
+
+    # Create action map
+    inv_action_map = {}
+    count = 0
+    for i in range(5):
+        for j in range(5):
+            inv_action_map[count] = [i,j]
+            count += 1
+    
+    #Create action tuple files
+    phys_actions_tuple = [None for i in range(len(phys_actions))]
+    policy_actions_tuple = [None for i in range(len(policy_actions))]                                          
+
+    for i in range(len(phys_actions)):
+        phys_actions_tuple[i] = inv_action_map[phys_actions[i]]
+
+    for i in range(len(policy_actions)):
+        policy_actions_tuple[i] = inv_action_map[policy_actions[i]]
+
+    #convert to array
+    phys_actions_tuple = np.array(phys_actions_tuple)
+    policy_actions_tuple = np.array(policy_actions_tuple)
+    mortality = np.array(mortality)
+
+    #Get dosing data
+    phys_actions_iv = phys_actions_tuple[:,0]
+    phys_actions_vaso = phys_actions_tuple[:,1]
+
+    policy_actions_iv = policy_actions_tuple[:,0]
+    policy_actions_vaso = policy_actions_tuple[:,1]
+
+    #Get dosing difference
+    iv_difference = phys_actions_iv - policy_actions_iv
+    vaso_difference = phys_actions_vaso - policy_actions_vaso
+
+    #Hack: bring data into a dataframe to collapse by dosing difference
+    iv_dict = {'iv_difference':iv_difference, 'survival': mortality}
+    iv_df = pd.DataFrame(iv_dict)
+    iv_df_grouped = iv_df.groupby('iv_difference',as_index=False).mean()
+    iv_df_grouped_std = iv_df.groupby('iv_difference',as_index=False).std()
+
+    if print_df:
+        print(iv_df_grouped)
+
+    vaso_dict = {'vaso_difference':vaso_difference, 'survival': mortality}
+    vaso_df = pd.DataFrame(vaso_dict)
+    vaso_df_grouped = vaso_df.groupby('vaso_difference',as_index=False).mean()
+    vaso_df_grouped_std = vaso_df.groupby('vaso_difference',as_index=False).std()
+
+    if print_df:
+        print(vaso_df_grouped)
+
+    #Create plot 
+
+    plt.plot(iv_df_grouped['iv_difference'],iv_df_grouped['survival'])
+    plt.fill_between(iv_df_grouped['iv_difference'], iv_df_grouped['survival'] - iv_df_grouped_std['survival'], iv_df_grouped['survival'] + iv_df_grouped_std['survival'], color="b", alpha=0.2)
+    plt.ylabel('90d Survival rate')
+    plt.xlabel('Difference to policy recommended intravenous fluid dose')
+    plt.title(f'Survival by action overlap with policy eps={eps}')
+    plt.ylim(0, 1)
+    plt.tight_layout()
+
+    if params['show']:
+        plt.show()
+    
+    plt.plot(vaso_df_grouped['vaso_difference'],vaso_df_grouped['survival'])
+    plt.fill_between(vaso_df_grouped['vaso_difference'], vaso_df_grouped['survival'] - vaso_df_grouped_std['survival'], vaso_df_grouped['survival'] + vaso_df_grouped_std['survival'], color="b", alpha=0.2)
+    plt.ylabel('90d Survival rate')
+    plt.xlabel('Difference to policy recommended vasopressor dose')
+    plt.title(f'Survival by action overlap with policy eps={eps}')
+    plt.ylim(0, 1)
+    plt.tight_layout()
+
+    if params['show']:
+        plt.show()
 
 if __name__ == "__main__":
 
@@ -94,6 +431,34 @@ if __name__ == "__main__":
     # Check whether plot should be saved
     parser.add_argument('--save', action='store_true')
 
+    # get prefix information for models
+    parser.add_argument('--critic_prefix', type=str, default="pCQLv2")  # the model I want to load
+
+    # Pruned models loaded
+    parser.add_argument('--pruned', action='store_true',
+                        help='Specify whether the loaded models are trained after pareto-pruning')
+    parser.add_argument('--pruning_file_prefix', type=str, default=None)
+    parser.add_argument('--prune_with_idqn', action='store_true')
+    parser.add_argument('--prune_with_icql', action='store_true')
+    parser.add_argument('--prune_with_mdqn', action='store_true')
+    parser.add_argument('--prune_with_emdqn', action='store_true')
+
+    #env
+    parser.add_argument('--env_rew_weights', type=float, nargs='*', default=None)
+
+    #Offline learning
+    parser.add_argument('--buffer_path', type=str, default='./Replay_buffer_extraction/Encoded_paths3_all_rewards.pkl')
+
+    # Model type
+    parser.add_argument('--mdqn', action='store_true')
+    parser.add_argument('--emdqn', action='store_true')
+    parser.add_argument('--cql', action='store_true')
+
+    # System
+    parser.add_argument('--seed', type=int, default=1)
+    parser.add_argument('--no_gpu', action='store_true')
+    parser.add_argument('--which_gpu', '-gpu_id', default=0)
+
     args = parser.parse_args()
 
     # Convert to dictionary
@@ -101,23 +466,100 @@ if __name__ == "__main__":
 
     before_eps = len(params['prefix'][:-6])
 
+
+    mdqn = params['mdqn']
+    cql = params['cql']
+    emdqn = params['emdqn']
+
+    data_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../data')
+
+    prune_with_idqn = params['prune_with_idqn']
+    prune_with_icql = params['prune_with_icql']
+    prune_with_mdqn = params['prune_with_mdqn']
+    prune_with_emdqn = params['prune_with_emdqn']
+
+
+    ##################################
+    # Load critics
+    ##################################
+    # set device
+    ptu.init_gpu(
+        use_gpu=not params['no_gpu'],
+        gpu_id=params['which_gpu']
+    )
+
+    if params['pruned']:
+
+        if mdqn or emdqn:
+            if mdqn:
+                pruning_folder_paths = glob.glob(os.path.join(data_path, params['critic_prefix'] + '*'))
+                assert len(pruning_folder_paths) == 1
+                critic_file_path = os.path.join(pruning_folder_paths[0], 'dqn_agent.pt')
+                if mdqn:
+                    critics = [MDQNCritic.load(f) for f in critic_file_path]
+                else:
+                    critics = [ExtendedMDQNCritic.load(f) for f in critic_file_path]
+
+        elif cql:
+            pruning_folder_paths = glob.glob(os.path.join(data_path, params['critic_prefix'] + '*'))
+            critic_file_path = [os.path.join(f, 'dqn_agent.pt') for f in pruning_folder_paths]
+            #critics = [PrunedCQLCritic.load(f) for f in critic_file_path]
+            critics = [CQLCritic.load(f) for f in critic_file_path]
+        else:
+            pruning_folder_paths = glob.glob(os.path.join(data_path, params['critic_prefix'] + '*'))
+            critic_file_path = [os.path.join(f, 'dqn_agent.pt') for f in pruning_folder_paths]
+            critics = [PrunedDQNCritic.load(f) for f in critic_file_path]
+    else:
+        if cql:
+            pruning_folder_paths = glob.glob(os.path.join(data_path, params['critic_prefix'] + '*'))
+            critic_file_path = [os.path.join(f, 'dqn_agent.pt') for f in pruning_folder_paths]
+            critics = [CQLCritic.load(f) for f in critic_file_path]
+        else:
+            pruning_folder_paths = glob.glob(os.path.join(data_path, params['critic_prefix'] + '*'))
+            critic_file_path = [os.path.join(f, 'dqn_agent.pt') for f in pruning_folder_paths]
+            critics = [DQNCritic.load(f) for f in critic_file_path]
+        
+
     ###############################
     # Load data
     ###############################
 
     # Path settings
-    data_path_ = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'data')
-    fig_path_ = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'figs')
+    curr_dir = os.getcwd()
+
+    #data_path_ = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'data')
+    #fig_path_ = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'figs')
+
+    data_path_ = os.path.join(curr_dir, 'data')
+    fig_path_ = os.path.join(curr_dir, 'figs')
+
     if not (os.path.exists(fig_path_)):
         os.makedirs(fig_path_)
+
+    for f in glob.glob(str(os.path.join(data_path_, params['prefix'] + '*'))):
+        print(f)
+    
+    #print(os.path.join(data_path_, params['prefix'] + '*'))
 
     # Get relevant files
     folder_paths_ = glob.glob(os.path.join(data_path_, params['prefix'] + '*'))
     file_paths_ = [glob.glob(os.path.join(f, 'actions*'))[0] for f in folder_paths_]
 
+    #print(folder_paths_)
+    #print(file_paths_)
+
     # Get action_set for optimal and pruned actions
     opt_action_sets = [get_action_set_data(file, params['opt_tag']) for file in file_paths_]
     pareto_action_sets = [get_action_set_data(file, params['eval_tag']) for file in file_paths_]
+    mortality_sets = [get_action_set_data(file, 'mortality_rtg',convert_to_list=True) for file in file_paths_]
+    pruned_action_sets = get_non_pareto_actions(pareto_action_sets)
+
+    #final policy action in dict
+    policy_actions_in_dict = [tag_in_dict(file, 'policy_actions') for file in file_paths_]
+
+    if all(policy_actions_in_dict):
+        policy_action_sets = [get_action_set_data(file, 'policy_actions') for file in file_paths_]
+
 
     # Get mortality indicator and number of flags per trajectory (flags == action not in pareto-set)
     flags_per_traj = [get_flags_per_traj(file, 'action_flags') for file in file_paths_]
@@ -132,9 +574,10 @@ if __name__ == "__main__":
 
     # Get eps number
     folder_paths_short = [f.split(os.sep)[-1] for f in folder_paths_]  # used as experiment name
+    print(folder_paths_short)
     # TODO
-    # eps_list = [int(f.split('_')[0][before_eps:]) for f in folder_paths_short]
-    eps_list = [-1 for f in folder_paths_short]
+    eps_list = [int(f.split('_')[0][before_eps:]) for f in folder_paths_short]
+    #eps_list = [-1 for f in folder_paths_short]
 
     # Sort these lists by eps
     eps_list_sorted = sorted(eps_list)
@@ -146,6 +589,63 @@ if __name__ == "__main__":
     pareto_set_sizes = [x for _, x in sorted(zip(eps_list, pareto_set_sizes), key=lambda pair: pair[0])]
     opt_action_sets = [x for _, x in sorted(zip(eps_list, opt_action_sets), key=lambda pair: pair[0])]
     pareto_action_sets = [x for _, x in sorted(zip(eps_list, pareto_action_sets), key=lambda pair: pair[0])]
+
+    pruned_action_sets = [x for _, x in sorted(zip(eps_list, pruned_action_sets), key=lambda pair: pair[0])]
+    mortality_sets = [x for _, x in sorted(zip(eps_list, mortality_sets), key=lambda pair: pair[0])]
+
+    if all(policy_actions_in_dict):
+        policy_action_sets = [x for _, x in sorted(zip(eps_list, policy_action_sets), key=lambda pair: pair[0])]
+
+
+
+    ##################################
+    # Pruning (if requested)
+    ##################################
+
+    if params['pruned']:
+        pruner = None
+        pruning_folder_paths = glob.glob(os.path.join(data_path, params['pruning_file_prefix'] + '*'))
+
+        if prune_with_idqn:
+            pruning_file_paths = [os.path.join(f, 'dqn_agent.pt') for f in pruning_folder_paths]
+            pruner = [IDQNPruner(pruning_eps=eps, saved_dqn_critics_paths=pruning_file_paths) for eps in eps_list_sorted]
+        
+        elif prune_with_icql:
+            pruning_file_paths = [os.path.join(f, 'dqn_agent.pt') for f in pruning_folder_paths]
+            pruner = [ICQLPruner(pruning_eps=eps, saved_dqn_critics_paths=pruning_file_paths) for eps in eps_list_sorted]
+
+        elif prune_with_mdqn:
+            assert len(pruning_folder_paths) == 1, 'found %d files!' % len(pruning_folder_paths)
+            pruning_file_path = os.path.join(pruning_folder_paths[0], 'dqn_agent.pt')
+            pruner = [MDQNPruner(n_draw=params['pruning_n_draw'], file_path=pruning_file_path) for _ in eps_list_sorted]
+
+        elif prune_with_emdqn:
+            assert len(pruning_folder_paths) == 1, 'found %d files!' % len(pruning_folder_paths)
+            pruning_file_path = os.path.join(pruning_folder_paths[0], 'dqn_agent.pt')
+            pruner = [ExtendedMDQNPruner(n_draw=params['pruning_n_draw'], file_path=pruning_file_path) for _ in eps_list_sorted]
+
+        elif params['cql']:
+            pruning_file_paths = [os.path.join(f, 'dqn_agent.pt') for f in pruning_folder_paths]
+            pruner = [ICQLPruner(file_paths=pruning_file_paths, pruning_eps=eps) for eps in eps_list_sorted]
+
+        params['action_pruner'] = pruner
+
+    ##################################
+    # Load policies
+    ##################################
+
+    #TODO find a way to load action_pruned
+
+    if params['pruned']:
+        policies = [PrunedArgMaxPolicy(critic=critics[i],action_pruner=pruner[i]) for i in range(len(critics))]
+    
+    #get actions suggested by policy for test data
+    outputs_list = []
+    if not all(policy_actions_in_dict):
+        for i in range(len(policies)): 
+            eval_outputs = run_offline_policy_eval(pruner[i], n_iter=1, eval_policy=policies[i], buffer_path=params['buffer_path'], pruning_critic=critics[i], gamma = 1)
+            outputs_list.append(eval_outputs)
+
 
     """
     exp_name_ = 'p9_eps0.3_alpha100_eval_LunarLander-Customizable'
@@ -181,9 +681,110 @@ if __name__ == "__main__":
     pareto_sizes = [len(x) for x in pareto_set]
     """
 
-    ##################################
-    # Plot Pareto Dist
-    ##################################
+    #######################################################################
+    #################### Action distribution analysis  ####################
+    #######################################################################
+
+    #Check physician actions
+    for i in range(len(opt_action_sets)):
+        eps = eps_list_sorted[i]
+        phys_actions = opt_action_sets[i]
+        #phys_actions = unpack_actions(outputs_list[i]['opt_actions'])
+        pareto_actions = unpack_actions(pareto_action_sets[i])
+        #policy_actions = unpack_actions(outputs_list[i]['policy_actions'])
+        policy_actions = policy_action_sets[i]
+        non_pareto_actions = unpack_actions(pruned_action_sets[i])
+        path_for_plot = folder_paths_short[i]
+        plot_action_dist(phys_actions, policy_actions, non_pareto_actions, eps, folderpath=path_for_plot, figurepath = fig_path_)
+    
+    #######################################################################
+    ################## Mortality by behavior vs. policy  ##################
+    #######################################################################
+
+    for i in range(len(opt_action_sets)):
+        mortality = mortality_sets[i]
+        policy_actions = policy_action_sets[i]
+        phys_actions = opt_action_sets[i]
+        eps = eps_list_sorted[i]
+        survival_by_policy_adherence(phys_actions,policy_actions,mortality,eps, print_df=True)
+
+    """
+    # Create action map
+    inv_action_map = {}
+    count = 0
+    for i in range(5):
+        for j in range(5):
+            inv_action_map[count] = [i,j]
+            count += 1
+    
+    #Create action tuple files
+    phys_actions_tuple = [None for i in range(len(phys_actions))]
+    policy_actions_tuple = [None for i in range(len(policy_actions))]                                          
+
+    for i in range(len(phys_actions)):
+        phys_actions_tuple[i] = inv_action_map[phys_actions[i]]
+
+    for i in range(len(policy_actions)):
+        policy_actions_tuple[i] = inv_action_map[policy_actions[i]]
+
+    #convert to array
+    phys_actions_tuple = np.array(phys_actions_tuple)
+    policy_actions_tuple = np.array(policy_actions_tuple)
+    mortality = np.array(mortality)
+
+    #Get dosing data
+    phys_actions_iv = phys_actions_tuple[:,0]
+    phys_actions_vaso = phys_actions_tuple[:,1]
+
+    policy_actions_iv = policy_actions_tuple[:,0]
+    policy_actions_vaso = policy_actions_tuple[:,1]
+
+    #Get dosing difference
+    iv_difference = phys_actions_iv - policy_actions_iv
+    vaso_difference = phys_actions_vaso - policy_actions_vaso
+
+    #Hack: bring data into a dataframe to collapse by dosing difference
+    iv_dict = {'iv_difference':iv_difference, 'survival': mortality}
+    iv_df = pd.DataFrame(iv_dict)
+    iv_df_grouped = iv_df.groupby('iv_difference',as_index=False).mean()
+    iv_df_grouped_std = iv_df.groupby('iv_difference',as_index=False).std()
+    print(iv_df_grouped)
+
+    vaso_dict = {'vaso_difference':vaso_difference, 'survival': mortality}
+    vaso_df = pd.DataFrame(vaso_dict)
+    vaso_df_grouped = vaso_df.groupby('vaso_difference',as_index=False).mean()
+    vaso_df_grouped_std = vaso_df.groupby('vaso_difference',as_index=False).std()
+    print(vaso_df_grouped)
+
+    #Create plot 
+
+    plt.plot(iv_df_grouped['iv_difference'],iv_df_grouped['survival'])
+    plt.fill_between(iv_df_grouped['iv_difference'], iv_df_grouped['survival'] - iv_df_grouped_std['survival'], iv_df_grouped['survival'] + iv_df_grouped_std['survival'], color="b", alpha=0.2)
+    plt.ylabel('90d Survival rate')
+    plt.xlabel('Difference to policy recommended intravenous fluid dose')
+    plt.title(f'Survival by action overlap with policy eps={eps}')
+    plt.ylim(0, 1)
+    plt.tight_layout()
+
+    if params['show']:
+        plt.show()
+    
+    plt.plot(vaso_df_grouped['vaso_difference'],vaso_df_grouped['survival'])
+    plt.fill_between(vaso_df_grouped['vaso_difference'], vaso_df_grouped['survival'] - vaso_df_grouped_std['survival'], vaso_df_grouped['survival'] + vaso_df_grouped_std['survival'], color="b", alpha=0.2)
+    plt.ylabel('90d Survival rate')
+    plt.xlabel('Difference to policy recommended vasopressor dose')
+    plt.title(f'Survival by action overlap with policy eps={eps}')
+    plt.ylim(0, 1)
+    plt.tight_layout()
+
+    if params['show']:
+        plt.show()
+    """
+
+
+    ############################################
+    # Plot Pareto Dist (action set size)
+    ############################################
 
     sizes = [Counter(pareto_sizes).keys() for pareto_sizes in pareto_set_sizes]  # equals to list(set(words))
     counts = [Counter(pareto_sizes).values() for pareto_sizes in pareto_set_sizes]  # counts the elements' frequency
@@ -198,6 +799,7 @@ if __name__ == "__main__":
         plt.xlim(0, 25)
 
         if params['save']:
+            #plt.savefig(os.path.join(fig_path_, folder_paths_short[i].split('_')[0] + '_counts.pdf'))
             plt.savefig(os.path.join(fig_path_, folder_paths_short[i] + '_counts.jpg'))
 
         if params['show']:
@@ -231,6 +833,7 @@ if __name__ == "__main__":
     plt.tight_layout()
 
     if params['save']:
+        #plt.savefig(os.path.join(fig_path_, folder_paths_short[i].split('_')[0] + '_mean_set_size.pdf'))
         plt.savefig(os.path.join(fig_path_, folder_paths_short[i] + '_mean_set_size.pdf'))
 
     if params['show']:
@@ -269,6 +872,7 @@ if __name__ == "__main__":
     plt.tight_layout()
 
     if params['save']:
+        #plt.savefig(os.path.join(fig_path_, folder_paths_short[i].split('_')[0] + '_mean_pareto_acc.pdf'))
         plt.savefig(os.path.join(fig_path_, folder_paths_short[i] + '_mean_pareto_acc.pdf'))
 
     if params['show']:
@@ -302,6 +906,7 @@ if __name__ == "__main__":
         plt.title(f'Pareto-set accuracy by size eps={eps_list_sorted[i]}')
 
         if params['save']:
+            #plt.savefig(os.path.join(fig_path_, folder_paths_short[i].split('_')[0] + '_acc_by_size.pdf'))
             plt.savefig(os.path.join(fig_path_, folder_paths_short[i] + '_acc_by_size.pdf'))
 
         if params['show']:
@@ -333,6 +938,7 @@ if __name__ == "__main__":
         plt.title(f'Survival rate by number of pareto-actions in traj eps={eps_list_sorted[i]}')
 
         if params['save']:
+            #plt.savefig(os.path.join(fig_path_, folder_paths_short[i].split('_')[0] + 'mortality_num_flags.pdf'))
             plt.savefig(os.path.join(fig_path_, folder_paths_short[i] + 'mortality_num_flags.pdf'))
 
         plt.show()
@@ -365,6 +971,7 @@ if __name__ == "__main__":
         plt.legend(loc='upper right')
 
         if params['save']:
+            #plt.savefig(os.path.join(fig_path_, folder_paths_short[i].split('_')[0] + 'hist_flagged_vs_non.pdf'))
             plt.savefig(os.path.join(fig_path_, folder_paths_short[i] + 'hist_flagged_vs_non.pdf'))
 
         plt.show()
@@ -392,6 +999,7 @@ if __name__ == "__main__":
         plt.legend(loc='upper right')
 
         if params['save']:
+            plt.savefig(os.path.join(fig_path_, folder_paths_short[i].split('_')[0] + 'hist_q_per_traj_flagged.pdf'))
             plt.savefig(os.path.join(fig_path_, folder_paths_short[i] + 'hist_q_per_traj_flagged.pdf'))
 
         plt.show()
@@ -653,3 +1261,7 @@ if __name__ == "__main__":
         #print(results_df_grouped_std)
         i += 1
 """
+#git filter-branch --index-filter 'git rm -r --cached --ignore-unmatch state_construction/results' HEAD
+
+#To remove any file with the path prefix example/path/to/something, you can run
+#git filter-repo --path example/path/to/something--invert-paths

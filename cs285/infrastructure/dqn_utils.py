@@ -138,7 +138,7 @@ def get_env_kwargs(env_name):
             'target_update_freq': 3000,
             'grad_norm_clipping': 10,
             'lander': True,
-            'num_timesteps': 500000,
+            'num_timesteps': 500000, #changed from 300k
             'env_wrappers': empty_wrapper,
             # Added by Ali
             'ep_len': 200,

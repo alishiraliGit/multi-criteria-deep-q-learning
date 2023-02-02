@@ -22,6 +22,24 @@ Plan of attack:
 
 [If 3 seems useful i.e. we are dropping actions 
 that lead to higher mortality then this metric could later be used to tune the pruning eps]
+
+# Get the Q-values
+        qa_values_na = critic.qa_values(obs_n)
+
+        qa_values_na = ptu.from_numpy(qa_values_na)
+        ac_n = ptu.from_numpy(ac_n).to(torch.long)
+
+        q_values_n = torch.gather(qa_values_na, 1, ac_n.unsqueeze(1)).squeeze(1)
+        q_values_n = ptu.to_numpy(q_values_n)
+
+        # Get reward-to-go and transform to dummy indicator of survival
+        rtg_n = utils.discounted_cumsum(re_n, params['gamma']) / 100  # to make this a mortality indicator
+        rtg_n = (rtg_n + 1) / 2
+
+        # Get values to append for plot
+        mean_q = np.mean(q_values_n)
+        max_rtg = np.max(rtg_n)
+
 """
 
 from collections import OrderedDict
@@ -47,8 +65,61 @@ from cs285.critics.dqn_critic import DQNCritic, MDQNCritic, ExtendedMDQNCritic, 
 from cs285.critics.cql_critic import CQLCritic, PrunedCQLCritic
 from cs285.infrastructure.dqn_utils import register_custom_envs
 
+def get_q_vals(ac_n,re_n,obs_n,critic):
+    # Get the Q-values
+    qa_values_na = critic.qa_values(obs_n)
 
-def plot_binned_mortality(eval_paths, params, critic, folder_path="test"):
+    qa_values_na = ptu.from_numpy(qa_values_na)
+    ac_n = ptu.from_numpy(ac_n).to(torch.long)
+
+    q_values_n = torch.gather(qa_values_na, 1, ac_n.unsqueeze(1)).squeeze(1)
+    q_values_n = ptu.to_numpy(q_values_n)
+
+    # Get reward-to-go and transform to dummy indicator of survival
+    rtg_n = utils.discounted_cumsum(re_n, params['gamma']) / 100  # to make this a mortality indicator
+    rtg_n = (rtg_n + 1) / 2
+
+    # Get values to append for plot
+    mean_q = np.mean(q_values_n)
+    max_rtg = np.max(rtg_n)
+
+    return q_values_n, rtg_n, mean_q, max_rtg
+
+def preprocess_bins(traj_info,q_label='mean_q', baseline = False):
+    #bins = np.linspace(np.min(traj_info['mean_q']), np.max(traj_info['mean_q']), 100)
+    bins = np.linspace(np.min(traj_info[q_label])*1.1, np.max(traj_info[q_label])*0.9, 50)
+    group = traj_info.groupby(pd.cut(traj_info.mean_q, bins))
+
+    plot_centers = (bins[:-1] + bins[1:]) / 2
+
+    plot_values = group.survive.mean().fillna(0)
+    plot_ci = (group.survive.std() / np.sqrt(group.survive.count())).fillna(0)
+
+    plot_ci = 1.96*np.sqrt((group.survive.mean()*(1-group.survive.mean()))/ group.survive.count()).fillna(0)
+    plot_range = group.survive.std().fillna(0)
+
+    indices = group.survive.count() > 20
+
+    if baseline:
+        plot_values = group.survive_b.mean().fillna(0)
+        plot_ci = (group.survive_b.std() / np.sqrt(group.survive_b.count())).fillna(0)
+
+        plot_ci = 1.96*np.sqrt((group.survive_b.mean()*(1-group.survive_b.mean()))/ group.survive_b.count()).fillna(0)
+        plot_range = group.survive_b.std().fillna(0)
+
+        indices = group.survive_b.count() > 20
+
+    plot_centers = plot_centers[indices]
+    plot_values = plot_values[indices]
+    plot_ci = plot_ci[indices]
+    plot_range = plot_range[indices]
+
+    return plot_centers, plot_values, plot_ci, plot_range
+
+
+
+def plot_binned_mortality(eval_paths, params, critic, critic_baseline=None, folder_path="test"):
+
     fig_path_ = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'figs')
 
     all_q_values = []
@@ -57,6 +128,12 @@ def plot_binned_mortality(eval_paths, params, critic, folder_path="test"):
     mean_q_per_traj = []
     max_rtg_per_traj = []
 
+    all_q_values_b = []
+    all_rtgs_b = []
+
+    mean_q_per_traj_b = []
+    max_rtg_per_traj_b = []
+
     for eval_path in eval_paths:
         obs_n = eval_path['observation']
         if obs_n.ndim == 1:
@@ -64,6 +141,8 @@ def plot_binned_mortality(eval_paths, params, critic, folder_path="test"):
 
         ac_n = eval_path['action']
         re_n = eval_path['reward']
+
+        q_values_n, rtg_n, mean_q, max_rtg = get_q_vals(ac_n,re_n,obs_n,critic)
 
         # Get the Q-values
         qa_values_na = critic.qa_values(obs_n)
@@ -89,6 +168,15 @@ def plot_binned_mortality(eval_paths, params, critic, folder_path="test"):
         all_q_values.append(q_values_n)
         all_rtgs.append(rtg_n)
 
+        if critic_baseline != None:
+            q_values_n_b, rtg_n_b, mean_q_b, max_rtg_b = get_q_vals(ac_n,re_n,obs_n,critic_baseline)
+            mean_q_per_traj_b.append(mean_q_b)
+            max_rtg_per_traj_b.append(max_rtg_b)
+
+            # Append
+            all_q_values_b.append(q_values_n_b)
+            all_rtgs_b.append(rtg_n_b)
+
     all_q_values = np.concatenate(all_q_values, axis=0)
     all_rtgs = np.concatenate(all_rtgs, axis=0)
 
@@ -96,11 +184,34 @@ def plot_binned_mortality(eval_paths, params, critic, folder_path="test"):
     traj_info['mean_q'] = all_q_values  # mean_q_per_traj
     traj_info['survive'] = all_rtgs  # max_rtg_per_traj
 
+    if critic_baseline != None:
+        all_q_values_b = np.concatenate(all_q_values_b, axis=0)
+        all_rtgs_b = np.concatenate(all_rtgs_b, axis=0)
+        traj_info['mean_q_b'] = all_q_values_b  # mean_q_per_traj
+        traj_info['survive_b'] = all_rtgs_b  # max_rtg_per_traj
+
+
     rho = np.corrcoef(all_rtgs, all_q_values)[0, 1]
     print(rho)
 
     print(traj_info.describe())
 
+    folder_path_split = folder_path.split('_')
+    method = folder_path_split[0]
+    eps = folder_path_split[1]
+
+    # create the binned plot
+
+    #bins = np.linspace(np.min(traj_info['mean_q']), np.max(traj_info['mean_q']), 100)
+    bins = np.linspace(np.min(traj_info['mean_q'])*1.1, np.max(traj_info['mean_q'])*0.9, 50)
+
+
+    plot_centers, plot_values, plot_ci, plot_range = preprocess_bins(traj_info, 'mean_q', False)
+
+    if critic_baseline != None:
+        plot_centers_b, plot_values_b, plot_ci_b, plot_range_b = preprocess_bins(traj_info, 'mean_q_b', True)
+    
+    """
     # create the binned plot
     plt.figure()
 
@@ -110,13 +221,40 @@ def plot_binned_mortality(eval_paths, params, critic, folder_path="test"):
     plot_centers = (bins[:-1] + bins[1:]) / 2
     plot_values = group.survive.mean().fillna(0)
     plot_ci = (group.survive.std() / np.sqrt(group.survive.count())).fillna(0)
+
+    plot_ci = 1.96*np.sqrt((group.survive.mean()*(1-group.survive.mean()))/ group.survive.count()).fillna(0)
     plot_range = group.survive.std().fillna(0)
 
-    indices = group.survive.count() > 3
+    indices = group.survive.count() > 10
+
     plot_centers = plot_centers[indices]
     plot_values = plot_values[indices]
     plot_ci = plot_ci[indices]
     plot_range = plot_range[indices]
+    """
+
+    plt.plot(plot_centers, plot_values, label=f'{method} eps={eps}')
+
+    # 1 std around mean per bin
+    #plt.fill_between(plot_centers, plot_values - plot_range, plot_values + plot_range, color="b", alpha=0.2)
+    # binomial confidence interval
+    plt.fill_between(plot_centers, plot_values - plot_ci, plot_values + plot_ci, color="g", alpha=0.2)
+
+    if critic_baseline != None:
+        plt.plot(plot_centers_b, plot_values_b, label=f'baseline model')
+        plt.fill_between(plot_centers_b, plot_values_b - plot_ci_b, plot_values_b + plot_ci_b, color="grey", alpha=0.2)
+
+    plt.ylim(0, 1)
+    
+    plt.ylabel('Survival rate')
+    plt.xlabel('Mean Q-value per trajectory')
+    plt.title(f'Survival rate by Q-value {method} eps={eps}')
+
+    plt.legend(loc='best')
+    plt.tight_layout()
+
+    if params['save']:
+        plt.savefig(os.path.join(fig_path_, folder_path + '_survival_by_Q.pdf'))
 
     plt.plot(plot_centers, plot_values)
 
@@ -142,12 +280,17 @@ def plot_binned_mortality(eval_paths, params, critic, folder_path="test"):
     survived_hist_data = traj_info[traj_info['survive'] == 1]
     nonsurvived_hist_data = traj_info[traj_info['survive'] == 0]
 
-    bins = np.linspace(20, 80, 50)
+    survived_hist_data['mean_q']
+
+    #bins = np.linspace(20, 80, 50)
+
+    bins = np.linspace(min(traj_info['mean_q']), max(traj_info['mean_q']), 40)
 
     plt.hist(survived_hist_data['mean_q'], bins, density=True, alpha=0.5, label='survivors')
     plt.hist(nonsurvived_hist_data['mean_q'], bins, density=True, alpha=0.5, label='nonsurvivors')
     plt.ylabel('Probability')
     plt.xlabel('Mean Q-value per trajectory')
+
     plt.title(f'Q-value historgram {folder_path}')
     plt.legend(loc='upper right')
 
@@ -267,8 +410,10 @@ if __name__ == "__main__":
         else:
             critics_b = [DQNCritic.load(f) for f in critic_file_path_b]
 
-        critic_file_path = critic_file_path + critic_file_path_b
-        critics = critics + critics_b
+        #critic_file_path = critic_file_path + critic_file_path_b
+        #critics = critics + critics_b
+    else:
+        critics_b = [None]
 
         # file_paths_b = [glob.glob(os.path.join(f, 'events*'))[0] for f in folder_paths_b]
         # file_paths_ = file_paths_ + file_paths_b
@@ -285,10 +430,12 @@ if __name__ == "__main__":
     all_paths = utils.format_reward(all_paths, params['env_rew_weights'])
 
     # Let's use 5% as validation set and 15% as hold-out set
+    #paths, test_paths = train_test_split(all_paths, test_size=0.15, random_state=params['seed'])
+
     paths, test_paths = train_test_split(all_paths, test_size=0.05, random_state=params['seed'])
 
     critic_file_name = [path.split(os.sep)[-2] for path in critic_file_path]
     print(critic_file_name)
 
     for critic, name in zip(critics, critic_file_name):
-        plot_binned_mortality(test_paths, params, critic, name)
+        plot_binned_mortality(test_paths, params, critic, critics_b[0], name)

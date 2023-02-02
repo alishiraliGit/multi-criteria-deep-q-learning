@@ -7,14 +7,15 @@ import argparse
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..'))
 
 from cs285.infrastructure.rl_evaluator import RLEvaluator
-from cs285.pruners.cql_pruner import ICQLPruner
+#from cs285.pruners.cql_pruner import ICQLPruner
 from cs285.infrastructure.dqn_utils import get_env_kwargs
 from cs285.infrastructure import pytorch_util as ptu
 from cs285.agents.dqn_agent import LoadedDQNAgent
-from cs285.pruners.independent_dqns_pruner import IDQNPruner
+from cs285.pruners.independent_dqns_pruner import IDQNPruner, ICQLPruner
 from cs285.pruners.dqn_pruner import MDQNPruner, ExtendedMDQNPruner
 from cs285.critics.cql_critic import CQLCritic, PrunedCQLCritic
 from cs285.critics.dqn_critic import DQNCritic, PrunedDQNCritic
+from cs285.policies.argmax_policy import ArgMaxPolicy, PrunedArgMaxPolicy
 
 
 def main():
@@ -43,6 +44,7 @@ def main():
     # Pruning
     parser.add_argument('--pruning_file_prefix', type=str, default=None)
     parser.add_argument('--prune_with_idqn', action='store_true')
+    parser.add_argument('--prune_with_icql', action='store_true')
     parser.add_argument('--prune_with_mdqn', action='store_true')
     parser.add_argument('--prune_with_emdqn', action='store_true')
     parser.add_argument('--pruning_eps', type=float, default=0., help='Look at pareto_opt_pruner.')
@@ -73,10 +75,11 @@ def main():
     customize_rew = False if params['env_rew_weights'] is None else True
 
     prune_with_idqn = params['prune_with_idqn']
+    prune_with_icql = params['prune_with_icql']
     prune_with_mdqn = params['prune_with_mdqn']
     prune_with_emdqn = params['prune_with_emdqn']
     cql = params['cql']
-    assert sum([prune_with_idqn, prune_with_mdqn, prune_with_emdqn, cql]) == 1
+    assert sum([prune_with_idqn, prune_with_mdqn, prune_with_emdqn, cql, prune_with_icql]) == 1
 
     ##################################
     # Set system variables
@@ -129,6 +132,10 @@ def main():
         pruning_file_paths = [os.path.join(f, 'dqn_agent.pt') for f in pruning_folder_paths]
         pruner = IDQNPruner(pruning_eps=params['pruning_eps'], saved_dqn_critics_paths=pruning_file_paths)
 
+    elif prune_with_icql:
+        pruning_file_paths = [os.path.join(f, 'dqn_agent.pt') for f in pruning_folder_paths]
+        pruner = ICQLPruner(pruning_eps=params['pruning_eps'], saved_dqn_critics_paths=pruning_file_paths)
+
     elif prune_with_mdqn:
         assert len(pruning_folder_paths) == 1, 'found %d files!' % len(pruning_folder_paths)
         pruning_file_path = os.path.join(pruning_folder_paths[0], 'dqn_agent.pt')
@@ -141,7 +148,8 @@ def main():
 
     elif cql:
         pruning_file_paths = [os.path.join(f, 'dqn_agent.pt') for f in pruning_folder_paths]
-        pruner = ICQLPruner(pruning_eps=params['pruning_eps'], file_paths=pruning_file_paths)
+        pruner = ICQLPruner(pruning_eps=params['pruning_eps'], saved_dqn_critics_paths=pruning_file_paths)
+        #pruner = ICQLPruner(pruning_eps=params['pruning_eps'], file_paths=pruning_file_paths)
 
     # Load phase 2 critic if provided
     pruning_critic = None
@@ -166,6 +174,11 @@ def main():
         opt_file_path = os.path.join(opt_folder_path, 'dqn_agent.pt')
         opt_agent = LoadedDQNAgent(file_path=opt_file_path)
         opt_actor = opt_agent.actor
+    
+    #load phase 2 policy based on provided inputs
+    policy = None
+    if pruning_critic is not None:
+        policy = PrunedArgMaxPolicy(critic=pruning_critic,action_pruner=pruner)
 
     ##################################
     # Run Q-learning
@@ -179,7 +192,8 @@ def main():
         opt_policy=opt_actor,
         eval_pruner=pruner,
         buffer_path=params['buffer_path'],
-        pruning_critic=pruning_critic
+        pruning_critic=pruning_critic,
+        pruned_policy=policy
     )
 
 

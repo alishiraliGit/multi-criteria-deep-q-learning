@@ -505,6 +505,7 @@ class RLTrainer(object):
         all_rtgs = np.concatenate(all_rtgs, axis=0)
         all_rtgs_mort = np.concatenate(all_rtgs_mort, axis=0)
 
+
         # noinspection PyTypeChecker, PyUnresolvedReferences
         rho = spearmanr(all_rtgs, all_q_values).correlation
         # noinspection PyTypeChecker, PyUnresolvedReferences

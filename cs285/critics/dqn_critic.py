@@ -317,7 +317,11 @@ class MDQNCritic(DQNCritic):
             likelihood_n = prob_2_n / prob_1_n
 
             # Select the better w
-            rnd_n = torch.rand(likelihood_n.shape)
+            if torch.cuda.is_available():
+                rnd_n = torch.rand(likelihood_n.shape,device='cuda')
+            else:
+                rnd_n = torch.rand(likelihood_n.shape)
+
             choice_n = (rnd_n < likelihood_n) * 1
 
             ws_n2r = torch.stack([w1_n1r.squeeze(1), w2_n1r.squeeze(1)], dim=1)

@@ -85,11 +85,13 @@ class RLEvaluator(object):
             self.params['agent_params']['ac_dim'] = ac_dim
             self.params['agent_params']['ob_dim'] = ob_dim
 
-    def run_evaluation_loop(self, n_iter, opt_policy, eval_pruner: BasePruner, buffer_path, pruning_critic=None):
+
+    def run_evaluation_loop(self, n_iter, opt_policy, eval_pruner: BasePruner, buffer_path, pruning_critic=None, pruned_policy=None):
         # TODO: Hard-coded
         print_period = 1
 
         opt_actions = []
+        policy_actions = []
         pruned_actions = []
         action_flags = []
 
@@ -151,14 +153,31 @@ class RLEvaluator(object):
                     q_values_n = list(ptu.to_numpy(q_values_n))
                     # print(q_values_n)
                     all_q_values.append(q_values_n)
+                
+                if pruned_policy is not None:
+                    traj_actions = []
+                    for ob in path['observation']:
+                        ac_n_policy = pruned_policy.get_action(ob)
+                        traj_actions.append(ac_n_policy)
+                    policy_actions.append(traj_actions)
+
 
         # Log/save
         with open(os.path.join(self.log_dir, 'actions.pkl'), 'wb') as f:
             if pruning_critic is not None:
-                pickle.dump({'opt_actions': opt_actions, 'pruned_actions': pruned_actions, 'action_flags': action_flags,
-                             'mortality_rtg': all_rtgs, 'q_vals': all_q_values}, f)
+                if pruned_policy is not None:
+                    pickle.dump({'opt_actions': opt_actions, 'pruned_actions': pruned_actions, 'action_flags': action_flags,
+                            'mortality_rtg': all_rtgs, 'q_vals': all_q_values, 'policy_actions': policy_actions}, f)
+                else:
+                    pickle.dump({'opt_actions': opt_actions, 'pruned_actions': pruned_actions, 'action_flags': action_flags,
+                                'mortality_rtg': all_rtgs, 'q_vals': all_q_values}, f)
             else:
-                pickle.dump({'opt_actions': opt_actions, 'pruned_actions': pruned_actions, 'action_flags': action_flags,
-                             'mortality_rtg': all_rtgs}, f)
+                if pruned_policy is not None:
+                    pickle.dump({'opt_actions': opt_actions, 'pruned_actions': pruned_actions, 'action_flags': action_flags,
+                                'mortality_rtg': all_rtgs, 'policy_actions': policy_actions}, f)
+                else:
+                    pickle.dump({'opt_actions': opt_actions, 'pruned_actions': pruned_actions, 'action_flags': action_flags,
+                                'mortality_rtg': all_rtgs}, f)
 
         return opt_actions, pruned_actions
+

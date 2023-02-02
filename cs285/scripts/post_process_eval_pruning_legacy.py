@@ -13,7 +13,8 @@ if __name__ == "__main__":
     if not (os.path.exists(fig_path_)):
         os.makedirs(fig_path_)
 
-    exp_name_ = 'sanity_check_cmdqn_eval'
+    exp_name_ = 'v3_offline_cmdqn_alpha10_cql0.01_50k_tmp_eval'
+    #exp_name_ = 'sanity_check_cmdqn_eval'
 
     all_folders_ = glob.glob(os.path.join(data_path_, exp_name_ + '*'))
     if len(all_folders_) > 1:
