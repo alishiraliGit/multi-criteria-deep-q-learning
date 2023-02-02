@@ -344,7 +344,7 @@ The code snippet below assumes that the eval files have been created in a way su
 python cs285/scripts/post_process_eval_pruning.py --prefix pCQLv4*_eval --pruning_file_prefix MIMICCQLv4_ --show --critic_prefix pCQLv4_ --pruned --prune_with_icql --cql --seed 1 --env_rew_weights 1 0 0 0 0 0 0 0 0 0 0 --buffer_path './Replay_buffer_extraction/Encoded_paths13_all_rewards.pkl'
 ```
 
-And for CMDQN
+And for CMDQ
 
 ```
 python cs285/scripts/post_process_eval_pruning.py --prefix testcmdqn_eval \
