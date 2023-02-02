@@ -74,6 +74,7 @@ def main():
     parser.add_argument('--scalar_log_freq', type=int, default=int(5e3))
     parser.add_argument('--video_log_freq', type=int, default=-1)
     parser.add_argument('--params_log_freq', type=int, default=int(5e3))  # Saves the trained networks
+    parser.add_argument('--save_best', action='store_true')
 
     # Offline learning params
     parser.add_argument('--offline', action='store_true')
