@@ -310,3 +310,25 @@ python run_eval_pareto_opt_dqn.py \
 --offline \
 --no_weights_in_path --buffer_path '../../Replay_buffer_extraction/Encoded_paths_all_rewards.pkl' \
 --no_gpu
+
+
+## New approach to create eval files
+
+This command line arguments takes the trained pCQL model and creates an actions file which include the pareto_actions per state, physician actions, and the actions suggested by the respective policy as well as the estimated Q-values.
+
+```
+python cs285/scripts/run_eval_pruning.py \
+--exp_name test_eval --env_name MIMIC \ --phase_2_critic_file_prefix pCQLv4_10 \
+--pruning_file_prefix MIMICCQLv4_ --pruning_eps 0.1 \
+--prune_with_icql --env_rew_weights 1 0 0 0 0 0 0 0 0 0 0 \
+--seed 1 --offline --no_weights_in_path \ 
+--buffer_path './Replay_buffer_extraction/Encoded_paths13_all_rewards.pkl'
+```
+
+## Run post-processing and get action distribution plots
+
+The code snippet below assumes that the eval files have been created in a way such that the file includes the actions suggested by the respective pruned policy (see section above). 
+
+```
+python cs285/scripts/post_process_eval_pruning.py --prefix pCQLv4*_eval --pruning_file_prefix MIMICCQLv4_ --show --critic_prefix pCQLv4_ --pruned --prune_with_icql --cql --seed 1 --env_rew_weights 1 0 0 0 0 0 0 0 0 0 0 --buffer_path './Replay_buffer_extraction/Encoded_paths13_all_rewards.pkl'
+```
