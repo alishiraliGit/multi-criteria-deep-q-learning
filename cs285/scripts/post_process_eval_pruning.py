@@ -442,6 +442,7 @@ if __name__ == "__main__":
     parser.add_argument('--prune_with_icql', action='store_true')
     parser.add_argument('--prune_with_mdqn', action='store_true')
     parser.add_argument('--prune_with_emdqn', action='store_true')
+    parser.add_argument('--pruning_n_draw', type=int, default=20, help='Look at random_pruner.')
 
     #env
     parser.add_argument('--env_rew_weights', type=float, nargs='*', default=None)
@@ -496,9 +497,18 @@ if __name__ == "__main__":
                 assert len(pruning_folder_paths) == 1
                 critic_file_path = os.path.join(pruning_folder_paths[0], 'dqn_agent.pt')
                 if mdqn:
-                    critics = [MDQNCritic.load(f) for f in critic_file_path]
+                    print(critic_file_path)
+                    print(type(critic_file_path))
+                    if type(critic_file_path) != list:
+                        #critics = MDQNCritic.load(critic_file_path)
+                        critics = DQNCritic.load(critic_file_path)
+                    else:    
+                        critics = [MDQNCritic.load(f) for f in critic_file_path]
                 else:
-                    critics = [ExtendedMDQNCritic.load(f) for f in critic_file_path]
+                    if type(critic_file_path) != list:
+                        critics = ExtendedMDQNCritic.load(critic_file_path)
+                    else:    
+                        critics = [ExtendedMDQNCritic.load(f) for f in critic_file_path]
 
         elif cql:
             pruning_folder_paths = glob.glob(os.path.join(data_path, params['critic_prefix'] + '*'))
@@ -576,8 +586,8 @@ if __name__ == "__main__":
     folder_paths_short = [f.split(os.sep)[-1] for f in folder_paths_]  # used as experiment name
     print(folder_paths_short)
     # TODO
-    eps_list = [int(f.split('_')[0][before_eps:]) for f in folder_paths_short]
-    #eps_list = [-1 for f in folder_paths_short]
+    #eps_list = [int(f.split('_')[0][before_eps:]) for f in folder_paths_short]
+    eps_list = [-1 for f in folder_paths_short]
 
     # Sort these lists by eps
     eps_list_sorted = sorted(eps_list)
@@ -637,7 +647,10 @@ if __name__ == "__main__":
     #TODO find a way to load action_pruned
 
     if params['pruned']:
-        policies = [PrunedArgMaxPolicy(critic=critics[i],action_pruner=pruner[i]) for i in range(len(critics))]
+        if type(critics) == list:
+            policies = [PrunedArgMaxPolicy(critic=critics[i],action_pruner=pruner[i]) for i in range(len(critics))]
+        else:
+            policy = PrunedArgMaxPolicy(critic=critics,action_pruner=pruner[0])
     
     #get actions suggested by policy for test data
     outputs_list = []
@@ -696,6 +709,8 @@ if __name__ == "__main__":
         non_pareto_actions = unpack_actions(pruned_action_sets[i])
         path_for_plot = folder_paths_short[i]
         plot_action_dist(phys_actions, policy_actions, non_pareto_actions, eps, folderpath=path_for_plot, figurepath = fig_path_)
+        print('Now Pareto-actions')
+        plot_action_dist(phys_actions, pareto_actions, non_pareto_actions, eps, folderpath=path_for_plot, figurepath = fig_path_)
     
     #######################################################################
     ################## Mortality by behavior vs. policy  ##################
@@ -960,8 +975,9 @@ if __name__ == "__main__":
     print("Flags and Q_vals analysis")
 
     i = 0
-    bins = np.linspace(0, 100, 50)
     for flagged, non_flagged in zip(flagged_dfs, non_flagged_dfs):
+
+        bins = np.linspace(min(np.min(flagged['q_vals']), np.min(non_flagged['q_vals'])), max(np.max(flagged['q_vals']), np.max(non_flagged['q_vals'])), 50)
 
         plt.hist(flagged['q_vals'], bins, density=True, alpha=0.5, label='Pareto-set actions')
         plt.hist(non_flagged['q_vals'], bins, density=True, alpha=0.5, label='Non pareto-set actions')
@@ -990,6 +1006,8 @@ if __name__ == "__main__":
     i = 0
     bins = np.linspace(0, 100, 50)
     for flagged, non_flagged in zip(flagged_dfs, non_flagged_dfs):
+
+        bins = np.linspace(min(np.min(flagged['q_vals']), np.min(non_flagged['q_vals'])), max(np.max(flagged['q_vals']), np.max(non_flagged['q_vals'])), 50)
 
         plt.hist(flagged['q_traj'], bins, density=True, alpha=0.5, label='Traj with pareto set actions')
         plt.hist(non_flagged['q_traj'], bins, density=True, alpha=0.5, label='Only non-pareto-set actions in traj')

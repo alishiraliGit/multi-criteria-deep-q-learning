@@ -30,3 +30,5 @@ if __name__ == "__main__":
 #python cs285/scripts/post_process_eval_pruning.py --prefix pCQLv4*_eval --pruning_file_prefix MIMICCQLv4_ --show --critic_prefix pCQLv4_ --pruned --prune_with_icql --cql --seed 1 --env_rew_weights 1 0 0 0 0 0 0 0 0 0 0 --buffer_path './Replay_buffer_extraction/Encoded_paths13_all_rewards.pkl'
 
 #python cs285/scripts/run_eval_pruning.py --exp_name test_eval --env_name MIMIC --phase_2_critic_file_prefix pCQLv4_10 --pruning_file_prefix MIMICCQLv4_ --pruning_eps 0.1 --prune_with_icql --env_rew_weights 1 0 0 0 0 0 0 0 0 0 0 --seed 1 --offline --no_weights_in_path --buffer_path './Replay_buffer_extraction/Encoded_paths13_all_rewards.pkl'
+
+#python cs285/scripts/run_eval_pruning.py --exp_name test_eval_cmdqn --env_name MIMIC --phase_2_critic_file_prefix v6_offline_pruned_cmdqn --pruning_file_prefix v6_offline_cmdqn_alpha --prune_with_mdqn --env_rew_weights 1 0 0 0 0 0 0 0 0 0 0 --seed 1 --offline --no_weights_in_path --buffer_path './Replay_buffer_extraction/Encoded_paths_all_rewards.pkl'
