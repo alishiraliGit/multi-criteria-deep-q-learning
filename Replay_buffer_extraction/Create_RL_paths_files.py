@@ -15,6 +15,7 @@ import os
 
 import math 
 import datetime 
+import pathlib
 
 #From hw5 utils
 def Path(obs, image_obs, acs, rewards, next_obs, terminals):
@@ -59,10 +60,20 @@ def create_path_file_all(unique_trajectories,mimictable_transitions):
     
     for id in unique_trajectories:
         df = mimictable_transitions[mimictable_transitions["icustayid"]==id]
+        print(df.head(25))
         obs, acs, next_obs, terminals = [], [], [], []
         r1, r2, r3, r4 = [], [], [], []
         r5, r6, r7, r8 = [], [], [], []
         r9, r10, r11 = [], [], []
+
+        #row_dict = df.to_dict(orient='records')
+        #print(row_dict)
+        #print(row_dict.keys())
+
+        print(df.shape)
+
+        
+
         for row in df.to_dict(orient='records'):
             obs.append(row['state'])
             acs.append(row['action'])
@@ -79,11 +90,67 @@ def create_path_file_all(unique_trajectories,mimictable_transitions):
             r9.append(row['Reward_lac_1_binary'])
             r10.append(row['Reward_lac_2_continous'])
             r11.append(row['Reward_lac_2_binary'])
+        
+        df.rename(columns={'state':'observation'}, inplace=True)
+        df.rename(columns={'next_state':'next_observation'}, inplace=True)
+
+        d = dict(zip(df.columns, df.T.values))
+        d['image_obs'] = image_obs
+
         path = Path_all(obs, image_obs, acs, next_obs, terminals, r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11)
+        
+        print('state')
+        print(d['observation'])
+        print(path['observation'])
+
+        print('acs')
+        print(d['action'])
+        print(path['action'])
+
+        print('next_state')
+        print(d['next_observation'])
+        print(path['next_observation'])
+
+        #print(path.keys())
+        #print(d.keys())
+
+        
         paths.append(path)
     
-    file_loc = os.path.join(os.path.join('Replay_buffer_extraction'), f'Paths_all_rewards.pkl')
+    return
+    #file_loc = os.path.join(os.path.join('Replay_buffer_extraction'), f'Paths_all_rewards.pkl')
 
+    #if not os.path.exists(file_loc):
+        #os.mkdir(file_loc)
+    
+    #with open(file_loc, 'wb') as f:
+       #pickle.dump(paths, f)
+
+def create_path_file_with_biomarkers(unique_trajectories,mimictable_transitions):
+    paths = []
+    image_obs = []
+    
+    for id in unique_trajectories:
+        df = mimictable_transitions[mimictable_transitions["icustayid"]==id]
+        df.rename(columns={'state':'observation'}, inplace=True)
+        df.rename(columns={'next_state':'next_observation'}, inplace=True)
+
+        df1 = df.copy()
+        path = dict(zip(df1.columns, df1.T.values))
+        path['image_obs'] = image_obs
+        paths.append(path)
+    
+    curentwd = os.getcwd()
+
+    #wd = pathlib.Path('Users/alexa/Alex/Studium/01_UC_Berkeley/01_Courses/Fall22/CS285_Deep_RL/Project/Codebase/py_ai_clinician')
+    #file_loc = os.path.join(wd, f'Paths_all_rewards_biomarkers.pkl')
+    #file_loc = r'Users/alexa/Alex/Studium/01_UC_Berkeley/01_Courses/Fall22/CS285_Deep_RL/Project/Codebase/py_ai_clinician/Paths_all_rewards_biomarkers.pkl'
+
+    file_loc = 'Paths_all_rewards_biomarkers.pkl'
+
+    #if not os.path.exists(file_loc):
+        #os.makedirs(file_loc)
+    
     with open(file_loc, 'wb') as f:
        pickle.dump(paths, f)
 
@@ -120,6 +187,13 @@ if __name__ == '__main__':
     #load the MIMIC table only containing state action next state, rewards
     mimictable_transitions = pd.read_csv('C:/Users/alexa/Alex/Studium/01_UC_Berkeley/01_Courses/Fall22/CS285_Deep_RL/Project/Codebase/py_ai_clinician/MIMICtable_transitions.csv')
 
+    print(mimictable_full.columns)
+
+    print(mimictable_transitions.columns)
+
+    biomarkers = [marker for marker in mimictable_full if marker not in mimictable_transitions]
+    print(biomarkers)
+
     #This are the relevant columns of the dataset
     #['Unnamed: 0', 'bloc', 'icustayid', 'charttime', 'state', 'action',
     #   'next_state', 'terminal', 'sparse_90d_rew', 'Reward_matrix_paper',
@@ -128,10 +202,12 @@ if __name__ == '__main__':
     #   'Reward_SOFA_change2_binary', 'Reward_lac_1_continous',
     #   'Reward_lac_1_binary', 'Reward_lac_2_continous', 'Reward_lac_2_binary']
 
+    
     unique_trajectories = list(mimictable_transitions.icustayid.unique())
     
     #IDEA 1: one reward per path file, multiple Path files
 
+    """
     reward_names = ['sparse_90d_rew', 'Reward_matrix_paper', 'Reward_SOFA_1_continous', 'Reward_SOFA_1_binary',
        'Reward_SOFA_2_continous', 'Reward_SOFA_2_binary',
        'Reward_SOFA_change2_binary', 'Reward_lac_1_continous',
@@ -141,11 +217,14 @@ if __name__ == '__main__':
         print(f'Creating Paths file for {reward_to_include}')
         create_path_file(unique_trajectories,reward_to_include,mimictable_transitions)
         print('saved paths file')
-    
+    """
+
     #IDEA 2: One Path file with all of the rewards
     print(f'Creating Paths file for all rewards')
-    create_path_file_all(unique_trajectories,mimictable_transitions)
+    #create_path_file_all(unique_trajectories,mimictable_full)
+    create_path_file_with_biomarkers(unique_trajectories,mimictable_full)
     print('saved paths file')
+    
 
 
 

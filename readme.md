@@ -336,6 +336,14 @@ python cs285/scripts/run_eval_pruning.py --exp_name 22testcmdqn_eval_cmdqn \
 --buffer_path './Replay_buffer_extraction/Encoded_paths_all_rewards.pkl'
 ```
 
+From Ali
+python cs285/scripts/run_eval_pruning.py --exp_name 22testcmdqn_eval_cmdqn \
+--env_name MIMIC --phase_2_critic_file_prefix v6_offline_pruned_cmdqn_alpha1.0_cql0.001_sparse_MIMIC \
+--pruning_file_prefix v6_offline_cmdqn_alpha1.0_cql0.001_MIMIC --prune_with_mdqn \
+--env_rew_weights 1 0 0 0 0 0 0 0 0 0 0 --seed 1 --offline \
+--no_weights_in_path --pruning_n_draw 100 \
+--buffer_path './Replay_buffer_extraction/Encoded_paths_all_rewards.pkl'
+
 ## Run post-processing and get action distribution plots
 
 The code snippet below assumes that the eval files have been created in a way such that the file includes the actions suggested by the respective pruned policy (see section above). 
