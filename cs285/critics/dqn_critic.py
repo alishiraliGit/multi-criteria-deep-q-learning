@@ -32,6 +32,7 @@ class DQNCritic(BaseCritic):
         self.ac_dim = hparams['ac_dim']
         self.re_dim = hparams.get('re_dim', 1)
         self.ex_dim = hparams.get('ex_dim', 1)
+        self.arch_dim = hparams.get('arch_dim', 64)
 
         self.double_q = hparams['double_q']
         self.grad_norm_clipping = hparams['grad_norm_clipping']
@@ -39,8 +40,8 @@ class DQNCritic(BaseCritic):
 
         # Networks
         network_initializer = hparams['q_func']
-        self.q_net = network_initializer(self.ob_dim, self.ac_dim, self.re_dim, self.ex_dim)
-        self.q_net_target = network_initializer(self.ob_dim, self.ac_dim, self.re_dim, self.ex_dim)
+        self.q_net = network_initializer(self.ob_dim, self.ac_dim, self.re_dim, self.ex_dim, self.arch_dim)
+        self.q_net_target = network_initializer(self.ob_dim, self.ac_dim, self.re_dim, self.ex_dim, self.arch_dim)
 
         # Optimization
         self.optimizer_spec = optimizer_spec

@@ -37,6 +37,7 @@ def main():
 
     # Q-learning params
     parser.add_argument('--double_q', action='store_true')
+    parser.add_argument('--arch_dim', type=int, default=64)
 
     # Pruning
     parser.add_argument('--pruning_file_prefix', type=str, default=None)

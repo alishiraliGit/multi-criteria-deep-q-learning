@@ -266,7 +266,7 @@ class RLTrainer(object):
             performance = 0
             if self.log_video or self.log_metrics:
                 # Perform logging
-                print('\nBeginning logging procedure...')
+                print('\nBeginning logging procedure (%s)...' % self.params['logdir'])
                 if isinstance(self.agent, DQNAgent):
                     if not self.offline:
                         self.perform_dqn_logging(all_logs)
