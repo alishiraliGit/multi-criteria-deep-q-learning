@@ -339,6 +339,7 @@ def sample_random_trajectories(env, min_timesteps_per_batch, max_path_length, re
 ############################################
 ############################################
 
+
 def format_reward(paths, weights=None, multi_inter=False, multi=False):
     """
     Path structure is :

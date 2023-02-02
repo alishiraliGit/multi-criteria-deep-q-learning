@@ -23,6 +23,7 @@ class MDQNPruner(BasePruner):
 
 
 class ExtendedMDQNPruner(BasePruner):
+
     def __init__(self, n_draw, file_path=None, critic=None):
         assert (file_path is not None) ^ (critic is not None)
         if file_path is not None:

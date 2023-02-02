@@ -11,7 +11,7 @@ from cs285.pruners.cql_pruner import ICQLPruner
 from cs285.infrastructure.dqn_utils import get_env_kwargs
 from cs285.infrastructure import pytorch_util as ptu
 from cs285.agents.dqn_agent import DQNAgent
-from cs285.pruners.independent_dqns_pruner import IDQNPruner
+from cs285.pruners.independent_dqns_pruner import IDQNPruner, ICQLPruner
 from cs285.pruners.dqn_pruner import MDQNPruner, ExtendedMDQNPruner
 
 
@@ -41,10 +41,11 @@ def main():
     # Pruning
     parser.add_argument('--pruning_file_prefix', type=str, default=None)
     parser.add_argument('--prune_with_idqn', action='store_true')
+    parser.add_argument('--prune_with_icql', action='store_true')
     parser.add_argument('--prune_with_mdqn', action='store_true')
     parser.add_argument('--prune_with_emdqn', action='store_true')
     parser.add_argument('--pruning_eps', type=float, default=0., help='Look at pareto_opt_pruner.')
-    parser.add_argument('--pruning_n_draw', type=int, default=100, help='Look at random_pruner.')
+    parser.add_argument('--pruning_n_draw', type=int, default=20, help='Look at random_pruner.')
 
     # MDQN
     parser.add_argument('--optimistic_mdqn', action='store_true')
@@ -100,10 +101,11 @@ def main():
     params['emdqn'] = params['diverse_emdqn'] or params['consistent_emdqn']
 
     prune_with_idqn = params['prune_with_idqn']
+    prune_with_icql = params['prune_with_icql']
     prune_with_mdqn = params['prune_with_mdqn']
     prune_with_emdqn = params['prune_with_emdqn']
 
-    params['prune'] = prune_with_idqn or prune_with_mdqn or prune_with_emdqn
+    params['prune'] = prune_with_idqn or prune_with_mdqn or prune_with_emdqn or prune_with_icql
 
     ##################################
     # Set system variables
@@ -156,6 +158,10 @@ def main():
         if prune_with_idqn:
             pruning_file_paths = [os.path.join(f, 'dqn_agent.pt') for f in pruning_folder_paths]
             pruner = IDQNPruner(pruning_eps=params['pruning_eps'], saved_dqn_critics_paths=pruning_file_paths)
+
+        elif prune_with_icql:
+            pruning_file_paths = [os.path.join(f, 'dqn_agent.pt') for f in pruning_folder_paths]
+            pruner = ICQLPruner(pruning_eps=params['pruning_eps'], saved_dqn_critics_paths=pruning_file_paths)
 
         elif prune_with_mdqn:
             assert len(pruning_folder_paths) == 1, 'found %d files!' % len(pruning_folder_paths)

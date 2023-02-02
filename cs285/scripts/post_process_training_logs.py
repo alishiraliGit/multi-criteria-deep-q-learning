@@ -17,6 +17,7 @@ def get_section_tags(file):
 
 def get_section_results(file, tags):
     data = {tag: [] for tag in tags}
+    print(data.keys())
     for e in tf.compat.v1.train.summary_iterator(file):
         for v in e.summary.value:
             for tag in tags:
@@ -77,6 +78,8 @@ if __name__ == '__main__':
     
     folder_paths_ = sorted(glob.glob(os.path.join(load_path_, params['prefix'] + '*')), key=os.path.getmtime)
 
+    print(folder_paths_)
+
     file_paths_ = [glob.glob(os.path.join(f, 'events*'))[0] for f in folder_paths_]
 
     print([f.split(os.sep)[-1] for f in folder_paths_])
@@ -98,12 +101,19 @@ if __name__ == '__main__':
     #x_tag_ = 'Train_EnvstepsSoFar'
     #y_tag_ = 'Train_AverageReturn' #'Training_Loss'
 
-    x_tag_ = params['x_tag'] 
+    x_tag_ = params['x_tag']
     y_tag_ = params['y_tag']
 
     #y_tag_ = 'Training_Loss'
+    #xs_ = [get_section_results(f, [x_tag_])[x_tag_] for f in file_paths_]
     xs_ = [get_section_results(f, [x_tag_])[x_tag_] for f in file_paths_]
     ys_ = [get_section_results(f, [y_tag_])[y_tag_] for f in file_paths_]
+
+    #xs_l = [len(b) for b in xs_]
+    #ys_l = [len(b) for b in ys_]
+
+    #print(xs_l)
+    #print(ys_l)
 
     #For offline learning we initially did not log train steps so we will need to recreate an iteration folder
     #xs_ = [list(range(len(data))) for data in ys_]
@@ -118,6 +128,12 @@ if __name__ == '__main__':
             plt.plot(xs_[cnt_][1:], ys_[cnt_])
 
     plt.legend([f.split(os.sep)[-1].split('-')[0] for f in folder_paths_]) #join 2 elements of string
+
+    #mylist = [f"eps = {fold.split('_')[1]}" for fold in folder_paths_[:-1]]
+    #mylist.append('baseline')
+    #mylist = ['PrunedMultiDQN (e=0.3)','Baseline DQN']
+    #mylist = ['PrunedMultiCQL (e=0.3)','Baseline CQL']
+    #plt.legend(mylist)
 
     #plt.xlabel('#time steps')
     #plt.ylabel('avg return')
