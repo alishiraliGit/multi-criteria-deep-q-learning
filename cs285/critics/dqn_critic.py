@@ -245,6 +245,7 @@ class MDQNCritic(DQNCritic):
         self.optimistic = hparams.get('optimistic_mdqn', False)
         self.diverse = hparams.get('diverse_mdqn', False)
         self.consistent = hparams.get('consistent_mdqn', False)
+        print(np.sum([self.optimistic, self.diverse, self.consistent]))
         if np.sum([self.optimistic, self.diverse, self.consistent]) != 1:
             raise Exception('MDQN type is inconsistently defined!')
 
