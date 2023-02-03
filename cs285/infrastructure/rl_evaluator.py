@@ -98,6 +98,29 @@ class RLEvaluator(object):
         all_q_values = []
         all_rtgs = []
 
+        
+
+
+        #This are the biomarkers
+         #['gender', 'age', 'elixhauser', 're_admission', 'died_in_hosp', 'died_within_48h_of_out_time', 
+         # 'mortality_90d', 'delay_end_of_record_and_discharge_or_death', 'Weight_kg', 'GCS', 'HR', 'SysBP', 
+         # 'MeanBP', 'DiaBP', 'RR', 'SpO2', 'Temp_C', 'FiO2_1', 'Potassium', 'Sodium', 'Chloride', 'Glucose', 
+         # 'BUN', 'Creatinine', 'Magnesium', 'Calcium', 'Ionised_Ca', 'CO2_mEqL', 'SGOT', 'SGPT', 'Total_bili', 
+         # 'Albumin', 'Hb', 'WBC_count', 'Platelets_count', 'PTT', 'PT', 'INR', 'Arterial_pH', 'paO2', 'paCO2', 
+         # 'Arterial_BE', 'Arterial_lactate', 'HCO3', 'mechvent', 'Shock_Index', 'PaO2_FiO2', 'median_dose_vaso', 
+         # 'max_dose_vaso', 'input_total', 'input_4hourly', 'output_total', 'output_4hourly', 
+         # 'cumulated_balance', 'SOFA', 'SIRS']
+
+         #Fatemi uses: Arterial_lactate, SOFA, SIRS, BUN, HR, 
+         # DiaBP, INR, MeanBP, RR, SpO2, SysBP, Temp_C, GCS 
+         # mechvent, paO2, PTT
+
+         # ['SOFA', 'SIRS', 'Arterial_lactate', 'Arterial_pH', 'BUN', 'HR', 'DiaBP', 'INR', 'MeanBP', 'RR', 'SpO2',
+         # 'SysBP', 'Temp_C', 'GCS', 'mechvent', 'paO2', 'paCO2']
+
+        sofa, sirs, art_lactate, art_ph, bun, hr, diabp  = [], [], [], [], [], [], []
+        inr, meanbp, rr, spo2, sysbp, temp_c, gcs, mechvent, pao2, paco2  = [], [], [], [], [], [], [], [], [], []
+
         if buffer_path is not None:
             # Load replay buffer data
             with open(self.params['buffer_path'], 'rb') as f:
@@ -160,10 +183,50 @@ class RLEvaluator(object):
                         ac_n_policy = pruned_policy.get_action(ob)
                         traj_actions.append(ac_n_policy)
                     policy_actions.append(traj_actions)
+                
+                buffer_path_list = buffer_path.split("_")
 
+                #If we have biomarkers we extract these as well and add them to the actions file
+                if 'biomarkers.pkl' in buffer_path_list:
+                    # ['SOFA', 'SIRS', 'Arterial_lactate', 'Arterial_pH', 'BUN', 'HR', 'DiaBP', 'INR', 'MeanBP', 'RR', 'SpO2',
+                    # 'SysBP', 'Temp_C', 'GCS', 'mechvent', 'paO2', 'paCO2']
+                    sofa.append(path['SOFA'].tolist())
+                    sirs.append(path['SIRS'].tolist())
+                    art_lactate.append(path['Arterial_lactate'].tolist())
+                    art_ph.append(path['Arterial_pH'].tolist())
+                    bun.append(path['BUN'].tolist())
+                    hr.append(path['HR'].tolist())
+                    diabp.append(path['DiaBP'].tolist())
+                    inr.append(path['INR'].tolist())
+                    meanbp.append(path['MeanBP'].tolist())
+                    rr.append(path['RR'].tolist())
+                    spo2.append(path['SpO2'].tolist())
+                    sysbp.append(path['SysBP'].tolist())
+                    temp_c.append(path['Temp_C'].tolist())
+                    gcs.append(path['GCS'].tolist())
+                    mechvent.append(path['mechvent'].tolist())
+                    pao2.append(path['paO2'].tolist())
+                    paco2.append(path['paCO2'].tolist())
 
         # Log/save
+
+        output_dict = {'opt_actions': opt_actions, 'pruned_actions': pruned_actions, 'action_flags': action_flags, 'mortality_rtg': all_rtgs}
+
+        if 'biomarkers.pkl' in buffer_path_list:
+            output_dict.update({'SOFA': sofa, 'SIRS': sirs, 'Arterial_lactate': art_lactate, 'Arterial_pH': art_ph, 'BUN':bun, 'HR':hr, 'DiaBP':diabp, 
+            'INR':inr, 'MeanBP':meanbp, 'RR': rr, 'SpO2': spo2, 'SysBP': sysbp, 'Temp_C': temp_c, 'GCS': gcs, 'mechvent': mechvent, 'paO2': pao2, 'paCO2': paco2})
+        
+        if pruning_critic is not None:
+            print('hello')
+            output_dict.update({'q_vals': all_q_values})
+        
+        if pruned_policy is not None:
+            output_dict.update({'policy_actions': policy_actions})
+        
         with open(os.path.join(self.log_dir, 'actions.pkl'), 'wb') as f:
+            pickle.dump(output_dict, f)
+            
+            """
             if pruning_critic is not None:
                 if pruned_policy is not None:
                     pickle.dump({'opt_actions': opt_actions, 'pruned_actions': pruned_actions, 'action_flags': action_flags,
@@ -178,6 +241,7 @@ class RLEvaluator(object):
                 else:
                     pickle.dump({'opt_actions': opt_actions, 'pruned_actions': pruned_actions, 'action_flags': action_flags,
                                 'mortality_rtg': all_rtgs}, f)
+            """
 
         return opt_actions, pruned_actions
 

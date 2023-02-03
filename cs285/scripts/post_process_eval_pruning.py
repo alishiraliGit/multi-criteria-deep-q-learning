@@ -22,6 +22,11 @@ from cs285.pruners.dqn_pruner import MDQNPruner, ExtendedMDQNPruner
 from cs285.infrastructure import pytorch_util as ptu
 from cs285.infrastructure import utils
 
+
+def sort_the_list(guide,list_to_be_sorted):
+        list_to_be_sorted = [x for _, x in sorted(zip(guide, list_to_be_sorted), key=lambda pair: pair[0])]
+        return list_to_be_sorted
+
 # import tensorflow as tf
 
 def tag_in_dict(file,tag):
@@ -41,7 +46,8 @@ def get_action_set_data(file, tag, printing=False, convert_to_list = False):
         actions_dict_ = pickle.load(f)
 
     # get actions for tag
-    #print(actions_dict_.keys())
+    if tag not in actions_dict_.keys():
+        print(f'Tag {tag} is not in the loaded file')
     actions = actions_dict_[tag]
     
      # Merge all trajectories
@@ -113,6 +119,47 @@ def unpack_actions(action_sets):
     for action_set in action_sets:
         save_list += action_set
     return save_list
+
+def plot_action_dist_by_sofa(phys_actions, pareto_action_set, pruned_action_set, policy_actions, sofa, eps='None',folderpath = "No path", figurepath=os.getcwd()):
+    
+    """    
+    plt.hist(phys_actions, bins=25)
+    plt.title("Actions selected by physician")
+    plt.xlabel("Action number")
+    plt.ylabel("Frequency")
+    plt.show()
+    """
+
+    print(sofa[:10])
+    #filter action files based on SOFA score
+    phys_actions_low = [ac for i, ac in enumerate(phys_actions) if sofa[i]<10]
+    phys_actions_medium = [ac for i, ac in enumerate(phys_actions) if (sofa[i]<15) and (sofa[i]>=10)]
+    phys_actions_high = [ac for i, ac in enumerate(phys_actions) if sofa[i]>=15]
+
+    policy_actions_low = [ac for i, ac in enumerate(policy_actions) if sofa[i]<10]
+    policy_actions_medium = [ac for i, ac in enumerate(policy_actions) if (sofa[i]<15) and (sofa[i]>=10)]
+    policy_actions_high = [ac for i, ac in enumerate(policy_actions) if sofa[i]>=15]
+
+    pareto_action_set_low = unpack_actions([ac for i, ac in enumerate(pareto_action_set) if sofa[i]<10])
+    pareto_action_set_medium = unpack_actions([ac for i, ac in enumerate(pareto_action_set) if (sofa[i]<15) and (sofa[i]>=10)])
+    pareto_action_set_high = unpack_actions([ac for i, ac in enumerate(pareto_action_set) if sofa[i]>=15])
+
+    pruned_action_set_low = unpack_actions([ac for i, ac in enumerate(pruned_action_set) if sofa[i]<10])
+    pruned_action_set_medium = unpack_actions([ac for i, ac in enumerate(pruned_action_set) if (sofa[i]<15) and (sofa[i]>=10)])
+    pruned_action_set_high = unpack_actions([ac for i, ac in enumerate(pruned_action_set) if sofa[i]>=15])
+
+    #pareto_actions_low = [ac for i, ac in enumerate(pareto_actions) if sofa[i]<5]
+    #pareto_actions_medium = [ac for i, ac in enumerate(pareto_actions) if (sofa[i]<15) and (sofa[i]>=5)]
+    #pareto_actions_high = [ac for i, ac in enumerate(pareto_actions) if sofa[i]>=15]
+
+    #non_pareto_actions_low = [ac for i, ac in enumerate(non_pareto_actions) if sofa[i]<5]
+    #non_pareto_actions_medium = [ac for i, ac in enumerate(non_pareto_actions) if (sofa[i]<15) and (sofa[i]>=5)]
+    #non_pareto_actions_high = [ac for i, ac in enumerate(non_pareto_actions) if sofa[i]>=15]
+
+    #plot the action dist
+    plot_action_dist(phys_actions_low, policy_actions_low, pruned_action_set_low, eps="Low SOFA")
+    plot_action_dist(phys_actions_medium, policy_actions_medium, pruned_action_set_medium, eps="Medium SOFA")
+    plot_action_dist(phys_actions_high, policy_actions_high, pruned_action_set_high, eps="High SOFA")
 
 def plot_action_dist(phys_actions, pareto_actions, non_pareto_actions, eps='None',folderpath = "No path", figurepath=os.getcwd()):
     
@@ -564,6 +611,29 @@ if __name__ == "__main__":
     mortality_sets = [get_action_set_data(file, 'mortality_rtg',convert_to_list=True) for file in file_paths_]
     pruned_action_sets = get_non_pareto_actions(pareto_action_sets)
 
+    #get all of the biomarker data
+    # ['SOFA', 'SIRS', 'Arterial_lactate', 'Arterial_pH', 'BUN', 'HR', 'DiaBP', 'INR', 'MeanBP', 'RR', 'SpO2',
+    # 'SysBP', 'Temp_C', 'GCS', 'mechvent', 'paO2', 'paCO2']
+
+    sofa = [get_action_set_data(file, 'SOFA') for file in file_paths_]
+    sirs = [get_action_set_data(file, 'SIRS') for file in file_paths_]
+    arterial_lactate = [get_action_set_data(file, 'Arterial_lactate') for file in file_paths_]
+    arterial_ph = [get_action_set_data(file, 'Arterial_pH') for file in file_paths_]
+    bun = [get_action_set_data(file, 'BUN') for file in file_paths_]
+    hr = [get_action_set_data(file, 'HR') for file in file_paths_]
+    diabp = [get_action_set_data(file, 'DiaBP') for file in file_paths_]
+    inr = [get_action_set_data(file, 'INR') for file in file_paths_]
+    meanbp = [get_action_set_data(file, 'MeanBP') for file in file_paths_]
+    rr = [get_action_set_data(file, 'RR') for file in file_paths_]
+    spo2 = [get_action_set_data(file, 'SpO2') for file in file_paths_]
+    sysbp = [get_action_set_data(file, 'SysBP') for file in file_paths_]
+    tempc = [get_action_set_data(file, 'Temp_C') for file in file_paths_]
+    gcs = [get_action_set_data(file, 'GCS') for file in file_paths_]
+    mechvent = [get_action_set_data(file, 'mechvent') for file in file_paths_]
+    paO2 = [get_action_set_data(file, 'paO2') for file in file_paths_]
+    paCO2 = [get_action_set_data(file, 'paCO2') for file in file_paths_]
+
+    
     #final policy action in dict
     policy_actions_in_dict = [tag_in_dict(file, 'policy_actions') for file in file_paths_]
 
@@ -579,6 +649,8 @@ if __name__ == "__main__":
     all_flags = [get_action_set_data(file, 'action_flags') for file in file_paths_]
     all_q_vals = [get_action_set_data(file, 'q_vals') for file in file_paths_]
 
+    print(type(all_q_vals))
+
     # Get pareto_set sizes
     pareto_set_sizes = [get_pareto_set_sizes(action_set) for action_set in pareto_action_sets]
 
@@ -591,6 +663,7 @@ if __name__ == "__main__":
 
     # Sort these lists by eps
     eps_list_sorted = sorted(eps_list)
+
 
     folder_paths_short = [x for _, x in sorted(zip(eps_list, folder_paths_short), key=lambda pair: pair[0])]
     folder_paths_ = [x for _, x in sorted(zip(eps_list, folder_paths_), key=lambda pair: pair[0])]
@@ -606,7 +679,24 @@ if __name__ == "__main__":
     if all(policy_actions_in_dict):
         policy_action_sets = [x for _, x in sorted(zip(eps_list, policy_action_sets), key=lambda pair: pair[0])]
 
+    #sort the biomarkers
 
+    sofa = sort_the_list(eps_list,sofa)
+    sirs = sort_the_list(eps_list,sirs)
+    arterial_lactate = sort_the_list(eps_list,arterial_ph)
+    bun = sort_the_list(eps_list,bun)
+    hr = sort_the_list(eps_list,hr)
+    diabp = sort_the_list(eps_list,diabp)
+    inr = sort_the_list(eps_list,inr)
+    meanbp = sort_the_list(eps_list,meanbp)
+    rr = sort_the_list(eps_list,rr)
+    spo2 = sort_the_list(eps_list,spo2)
+    sysbp = sort_the_list(eps_list,sysbp)
+    tempc = sort_the_list(eps_list,tempc)
+    gcs = sort_the_list(eps_list,gcs)
+    mechvent = sort_the_list(eps_list,mechvent)
+    paO2 = sort_the_list(eps_list,paO2)
+    paCO2 = sort_the_list(eps_list,paCO2)
 
     ##################################
     # Pruning (if requested)
@@ -711,6 +801,18 @@ if __name__ == "__main__":
         plot_action_dist(phys_actions, policy_actions, non_pareto_actions, eps, folderpath=path_for_plot, figurepath = fig_path_)
         print('Now Pareto-actions')
         plot_action_dist(phys_actions, pareto_actions, non_pareto_actions, eps, folderpath=path_for_plot, figurepath = fig_path_)
+
+        print(len(phys_actions))
+        print(len(policy_actions))
+        print(len(sofa[0]))
+        print(len(pareto_action_sets[0]))
+        print(len(pareto_actions))
+        print(len(non_pareto_actions))  
+
+        sofa_exp = sofa[i]
+
+
+        plot_action_dist_by_sofa(phys_actions, pareto_action_sets[i], pruned_action_sets[i], policy_actions, sofa_exp, eps, folderpath=path_for_plot, figurepath = fig_path_)
     
     #######################################################################
     ################## Mortality by behavior vs. policy  ##################
@@ -1007,7 +1109,7 @@ if __name__ == "__main__":
     bins = np.linspace(0, 100, 50)
     for flagged, non_flagged in zip(flagged_dfs, non_flagged_dfs):
 
-        bins = np.linspace(min(np.min(flagged['q_vals']), np.min(non_flagged['q_vals'])), max(np.max(flagged['q_vals']), np.max(non_flagged['q_vals'])), 50)
+        bins = np.linspace(min(np.min(flagged['q_traj']), np.min(non_flagged['q_traj'])), max(np.max(flagged['q_traj']), np.max(non_flagged['q_traj'])), 50)
 
         plt.hist(flagged['q_traj'], bins, density=True, alpha=0.5, label='Traj with pareto set actions')
         plt.hist(non_flagged['q_traj'], bins, density=True, alpha=0.5, label='Only non-pareto-set actions in traj')
