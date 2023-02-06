@@ -24,7 +24,7 @@ if __name__ == '__main__':
     # Load data
     # data_folder_ = os.path.join('..', '..', 'Replay_buffer_extraction')
     data_folder_ = os.path.join('Replay_buffer_extraction')
-    data_name_ = 'Paths_all_rewards.pkl'
+    data_name_ = 'Paths_all_rewards_biomarkers.pkl' 
 
     print(os.path.join(data_folder_, data_name_))
 
