@@ -340,7 +340,7 @@ def sample_random_trajectories(env, min_timesteps_per_batch, max_path_length, re
 ############################################
 
 
-def format_reward(paths, weights=None, multi_inter=False, multi=False):
+def format_reward(paths, weights=None, multi_inter=False, multi=False, continuous=False, multi_continuous=False):
     """
     Path structure is :
     #   'sparse_90d_rew', 'Reward_matrix_paper',
@@ -351,9 +351,6 @@ def format_reward(paths, weights=None, multi_inter=False, multi=False):
 
     If multi=True, rewards will be concatenated
     """
-    if not multi:
-        assert len(weights) == 11
-
     new_paths = []
     for path in paths:
         if multi_inter:
@@ -375,7 +372,7 @@ def format_reward(paths, weights=None, multi_inter=False, multi=False):
         elif multi:
             path['reward'] = np.stack(
                 [
-                    path['sparse_90d_rew'],
+                    path['sparse_90d_rew_n'],
                     path['Reward_matrix_paper'],
                     path['Reward_SOFA_1_continous'],
                     path['Reward_SOFA_1_binary'],
@@ -389,18 +386,39 @@ def format_reward(paths, weights=None, multi_inter=False, multi=False):
                 ],
                 axis=1
             )
+        elif multi_continuous:
+            path['reward'] = np.stack(
+                [
+                    path['sparse_90d_rew_n'],
+                    path['Reward_matrix_paper'],
+                    path['Reward_SOFA_1_continous'],
+                    path['Reward_SOFA_2_continous'],
+                    path['Reward_lac_1_continous'],
+                    path['Reward_lac_2_continous'],
+                ],
+                axis=1
+            )
+        elif continuous:
+            assert len(weights) == 6
+            path['reward'] = weights[0] * path['sparse_90d_rew_n'] \
+                + weights[1] * path['Reward_matrix_paper'] \
+                + weights[2] * path['Reward_SOFA_1_continous'] \
+                + weights[3] * path['Reward_SOFA_2_continous'] \
+                + weights[4] * path['Reward_lac_1_continous'] \
+                + weights[5] * path['Reward_lac_2_continous']
         else:
-            path['reward'] = weights[0] * path['sparse_90d_rew'] \
-                             + weights[1] * path['Reward_matrix_paper'] \
-                             + weights[2] * path['Reward_SOFA_1_continous'] \
-                             + weights[3] * path['Reward_SOFA_1_binary'] \
-                             + weights[4] * path['Reward_SOFA_2_continous'] \
-                             + weights[5] * path['Reward_SOFA_2_binary'] \
-                             + weights[6] * path['Reward_SOFA_change2_binary'] \
-                             + weights[7] * path['Reward_lac_1_continous'] \
-                             + weights[8] * path['Reward_lac_1_binary'] \
-                             + weights[9] * path['Reward_lac_2_continous'] \
-                             + weights[10] * path['Reward_lac_2_binary']
+            assert len(weights) == 11
+            path['reward'] = weights[0] * path['sparse_90d_rew_n'] \
+                + weights[1] * path['Reward_matrix_paper'] \
+                + weights[2] * path['Reward_SOFA_1_continous'] \
+                + weights[3] * path['Reward_SOFA_1_binary'] \
+                + weights[4] * path['Reward_SOFA_2_continous'] \
+                + weights[5] * path['Reward_SOFA_2_binary'] \
+                + weights[6] * path['Reward_SOFA_change2_binary'] \
+                + weights[7] * path['Reward_lac_1_continous'] \
+                + weights[8] * path['Reward_lac_1_binary'] \
+                + weights[9] * path['Reward_lac_2_continous'] \
+                + weights[10] * path['Reward_lac_2_binary']
 
         new_paths.append(path)
 

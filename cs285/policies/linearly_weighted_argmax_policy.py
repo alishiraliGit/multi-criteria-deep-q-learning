@@ -7,7 +7,10 @@ from cs285.infrastructure import pytorch_util as ptu
 
 
 def draw_w(size, b) -> np.ndarray:
-    return np.random.random(size) * b + 1
+    if isinstance(b, int) or isinstance(b, float) or len(b) == 1:
+        return np.random.random(size) * b + 1
+    else:
+        return 0.5*np.array(b)[np.newaxis, :] + np.random.random(size) * np.array(b)[np.newaxis, :]
 
 
 class LinearlyWeightedArgMaxPolicy(BasePolicy):

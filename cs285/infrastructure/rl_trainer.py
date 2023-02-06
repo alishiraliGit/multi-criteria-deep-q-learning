@@ -138,11 +138,15 @@ class RLTrainer(object):
                 all_paths = pickle.load(f)
 
             if self.params['env_name'] == 'MIMIC':
-                all_paths = utils.format_reward(all_paths, weights=params['env_rew_weights'], multi=False)
+                all_paths = utils.format_reward(all_paths, weights=params['env_rew_weights'])
+            if self.params['env_name'] == 'MIMIC-Continuous':
+                all_paths = utils.format_reward(all_paths, weights=params['env_rew_weights'], continuous=True)
             elif self.params['env_name'] == 'MIMIC-MultiInterReward':
                 all_paths = utils.format_reward(all_paths, multi_inter=True)
             elif self.params['env_name'] == 'MIMIC-MultiReward':
                 all_paths = utils.format_reward(all_paths, multi=True)
+            elif self.params['env_name'] == 'MIMIC-MultiContinuousReward':
+                all_paths = utils.format_reward(all_paths, multi_continuous=True)
             else:
                 raise Exception('Invalid env_name!')
 
@@ -473,8 +477,8 @@ class RLTrainer(object):
 
         last_log = all_logs[-1]
 
-        if len(last_log) == 0:
-            return 0
+        # if len(last_log) == 0:
+        #    return 0
 
         # Run for test set
         all_q_values = []
@@ -521,47 +525,47 @@ class RLTrainer(object):
 
         # Run for train set
 
-        all_q_values = []
-        all_rtgs = []
-        all_rtgs_mort = []
-        for train_path in train_paths:
-            obs_n = train_path['observation']
-            if obs_n.ndim == 1:
-                obs_n = obs_n[:, np.newaxis]
-
-            ac_n = train_path['action']
-            re_n = train_path['reward']
-            re_mort_n = train_path['sparse_90d_rew']
-
-            # Get the Q-values
-            qa_values_na = self.agent.critic.qa_values(obs_n)
-
-            qa_values_na = ptu.from_numpy(qa_values_na)
-            ac_n = ptu.from_numpy(ac_n).to(torch.long)
-
-            q_values_n = torch.gather(qa_values_na, 1, ac_n.unsqueeze(1)).squeeze(1)
-
-            q_values_n = ptu.to_numpy(q_values_n)
-
-            # Get reward-to-go
-            rtg_n = utils.discounted_cumsum(re_n, self.params['gamma'])
-            rtg_mort_n = utils.discounted_cumsum(re_mort_n, self.params['gamma'])
-
-            # Append
-            all_q_values.append(q_values_n)
-            all_rtgs.append(rtg_n)
-            all_rtgs_mort.append(rtg_mort_n)
-
-        all_q_values = np.concatenate(all_q_values, axis=0)
-        all_rtgs = np.concatenate(all_rtgs, axis=0)
-        all_rtgs_mort = np.concatenate(all_rtgs_mort, axis=0)
-
-        # noinspection PyTypeChecker, PyUnresolvedReferences
-        rho_train = spearmanr(all_rtgs, all_q_values).correlation
-        # noinspection PyTypeChecker, PyUnresolvedReferences
-        rho_train_mort = spearmanr(all_rtgs_mort, all_q_values).correlation
-
-        avg_q_train = np.mean(all_q_values)
+        # all_q_values = []
+        # all_rtgs = []
+        # all_rtgs_mort = []
+        # for train_path in train_paths:
+        #     obs_n = train_path['observation']
+        #     if obs_n.ndim == 1:
+        #         obs_n = obs_n[:, np.newaxis]
+        #
+        #     ac_n = train_path['action']
+        #     re_n = train_path['reward']
+        #     re_mort_n = train_path['sparse_90d_rew']
+        #
+        #     # Get the Q-values
+        #     qa_values_na = self.agent.critic.qa_values(obs_n)
+        #
+        #     qa_values_na = ptu.from_numpy(qa_values_na)
+        #     ac_n = ptu.from_numpy(ac_n).to(torch.long)
+        #
+        #     q_values_n = torch.gather(qa_values_na, 1, ac_n.unsqueeze(1)).squeeze(1)
+        #
+        #     q_values_n = ptu.to_numpy(q_values_n)
+        #
+        #     # Get reward-to-go
+        #     rtg_n = utils.discounted_cumsum(re_n, self.params['gamma'])
+        #     rtg_mort_n = utils.discounted_cumsum(re_mort_n, self.params['gamma'])
+        #
+        #     # Append
+        #     all_q_values.append(q_values_n)
+        #     all_rtgs.append(rtg_n)
+        #     all_rtgs_mort.append(rtg_mort_n)
+        #
+        # all_q_values = np.concatenate(all_q_values, axis=0)
+        # all_rtgs = np.concatenate(all_rtgs, axis=0)
+        # all_rtgs_mort = np.concatenate(all_rtgs_mort, axis=0)
+        #
+        # # noinspection PyTypeChecker, PyUnresolvedReferences
+        # rho_train = spearmanr(all_rtgs, all_q_values).correlation
+        # # noinspection PyTypeChecker, PyUnresolvedReferences
+        # rho_train_mort = spearmanr(all_rtgs_mort, all_q_values).correlation
+        #
+        # avg_q_train = np.mean(all_q_values)
 
         # save eval metrics
         if self.log_metrics:
@@ -571,9 +575,9 @@ class RLTrainer(object):
             logs['Rho_mort'] = rho_mort
             logs['Avg Q'] = avg_q
 
-            logs['Rho_train'] = rho_train
-            logs['Rho_mort_train'] = rho_train_mort
-            logs['Avg Q train'] = avg_q_train
+            # logs['Rho_train'] = rho_train
+            # logs['Rho_mort_train'] = rho_train_mort
+            # logs['Avg Q train'] = avg_q_train
             logs['TimeSinceStart'] = time.time() - self.start_time
             logs['Train_itr'] = itr
             logs.update(last_log)
@@ -592,8 +596,8 @@ class RLTrainer(object):
 
         last_log = all_logs[-1]
 
-        if len(last_log) == 0:
-            return 0
+        # if len(last_log) == 0:
+        #    return 0
 
         # Get the pruner
         if self.agent.mdqn:
@@ -604,7 +608,9 @@ class RLTrainer(object):
             raise NotImplementedError
 
         # Run on the test set
-        all_prob_ac_is_available = []
+        tp = 0
+        p = 0
+        fn = 0
         all_num_available = []
         all_rtg_pruned = []
         all_rtg_available = []
@@ -616,10 +622,12 @@ class RLTrainer(object):
             # Check action is included
             ac_n = eval_path['action'].astype(int)
             available_acs_n = pruner.get_list_of_available_actions(obs_n)
-            ac_is_available = [(ac in available_acs_n[i_ac]) for i_ac, ac in enumerate(ac_n)]
 
-            all_prob_ac_is_available.append(np.mean(ac_is_available))
-            all_num_available.extend([len(available_acs) for available_acs in available_acs_n])
+            all_num_available.extend([len(available_acs_n[i_ac]) for i_ac, ac in enumerate(ac_n)])
+
+            tp += np.sum([(ac in available_acs_n[i_ac]) for i_ac, ac in enumerate(ac_n)])
+            p += np.sum([len(available_acs_n[i_ac]) for i_ac, ac in enumerate(ac_n)])
+            fn += np.sum([(ac not in available_acs_n[i_ac]) for i_ac, ac in enumerate(ac_n)])
 
             # Compare pruned and remained actions based on rtg
             re_mort_n = eval_path['sparse_90d_rew']
@@ -633,7 +641,9 @@ class RLTrainer(object):
 
         # Decide what to log
         logs = OrderedDict()
-        logs['Recall'] = np.mean(all_prob_ac_is_available)
+        logs['Recall'] = tp/(tp + fn)
+        logs['Precision'] = tp/p
+        logs['F1'] = 2*logs['Recall']*logs['Precision'] / (logs['Recall'] + logs['Precision'])
         logs['Avg_Num_Available_Actions'] = np.mean(all_num_available)
         logs['RTG_Available_Actions'] = np.mean(all_rtg_available)
         logs['RTG_Pruned_Actions'] = np.mean(all_rtg_pruned)
@@ -652,4 +662,4 @@ class RLTrainer(object):
 
         self.logger.flush()
 
-        return logs['RTG_Available_Actions']
+        return logs['F1']

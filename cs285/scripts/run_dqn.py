@@ -34,6 +34,7 @@ def main():
     # Update frequencies
     parser.add_argument('--num_agent_train_steps_per_iter', type=int, default=1)
     parser.add_argument('--num_critic_updates_per_agent_update', type=int, default=1)
+    parser.add_argument('--target_update_freq', type=int, default=3000)
 
     # Q-learning params
     parser.add_argument('--double_q', action='store_true')
@@ -59,7 +60,8 @@ def main():
     parser.add_argument('--ex_dim', type=int, default=1)
 
     parser.add_argument('--consistency_alpha', type=float, default=1, help='Look at MDQN in dqn_critic.')
-    parser.add_argument('--w_bound', type=float, default=0.5, help='Look at draw_w in linearly_weighted_argmax_policy.')
+    parser.add_argument('--w_bound', type=float, nargs='*', default=1.0,
+                        help='Look at draw_w in linearly_weighted_argmax_policy.')
 
     # CQL
     parser.add_argument('--add_cql_loss', action='store_true', help='Adds CQL loss to MDQN and EMDQN.')

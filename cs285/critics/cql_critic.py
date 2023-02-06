@@ -186,7 +186,7 @@ class PrunedCQLCritic(CQLCritic):
         qa_tp1_target_values = self.q_net_target(next_ob_no)
 
         # Get the pruned action set
-        available_actions = self.action_pruner.get_list_of_available_actions(ptu.to_numpy(ob_no))
+        next_available_actions = self.action_pruner.get_list_of_available_actions(ptu.to_numpy(next_ob_no))
 
         if self.double_q:
             # In double Q-learning, the best action is selected using the Q-network that
@@ -195,10 +195,10 @@ class PrunedCQLCritic(CQLCritic):
 
             qa_tp1_values = self.q_net(next_ob_no)
 
-            ac_tp1 = get_maximizer_from_available_actions(qa_tp1_values, available_actions)
+            ac_tp1 = get_maximizer_from_available_actions(qa_tp1_values, next_available_actions)
 
         else:
-            ac_tp1 = get_maximizer_from_available_actions(qa_tp1_target_values, available_actions)
+            ac_tp1 = get_maximizer_from_available_actions(qa_tp1_target_values, next_available_actions)
 
         q_tp1 = torch.gather(qa_tp1_target_values, 1, ac_tp1.unsqueeze(1)).squeeze(1)
 

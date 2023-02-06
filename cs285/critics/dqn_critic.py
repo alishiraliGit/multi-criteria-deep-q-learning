@@ -195,6 +195,7 @@ class PrunedDQNCritic(DQNCritic):
 
         # Get the pruned action set
         available_actions = self.action_pruner.get_list_of_available_actions(ptu.to_numpy(ob_no))
+        next_available_actions = self.action_pruner.get_list_of_available_actions(ptu.to_numpy(next_ob_no))
 
         if self.double_q:
             # In double Q-learning, the best action is selected using the Q-network that
@@ -203,9 +204,9 @@ class PrunedDQNCritic(DQNCritic):
 
             qa_tp1_values = self.q_net(next_ob_no)
 
-            ac_tp1 = get_maximizer_from_available_actions(qa_tp1_values, available_actions)
+            ac_tp1 = get_maximizer_from_available_actions(qa_tp1_values, next_available_actions)
         else:
-            ac_tp1 = get_maximizer_from_available_actions(qa_tp1_target_values, available_actions)
+            ac_tp1 = get_maximizer_from_available_actions(qa_tp1_target_values, next_available_actions)
 
         q_tp1 = torch.gather(qa_tp1_target_values, 1, ac_tp1.unsqueeze(1)).squeeze(1)
 
@@ -221,7 +222,13 @@ class PrunedDQNCritic(DQNCritic):
         if self.add_cql_loss:
             q_t_logsumexp = torch.logsumexp(qa_t_values, dim=1)
             cql_loss = torch.mean(q_t_logsumexp - q_t_values)
-            loss = self.cql_alpha * cql_loss + loss
+            loss += self.cql_alpha * cql_loss
+
+        # TODO
+        if False:
+            q_t_max, _ = qa_t_values.max(dim=1)
+            q_t_avail_max = get_maximizer_from_available_actions(qa_t_values, available_actions)
+            loss += 0.01 * torch.mean(q_t_max - q_t_avail_max)
 
         # Step the optimizer
         self.optimizer.zero_grad()
@@ -301,8 +308,8 @@ class MDQNCritic(DQNCritic):
             n, a, r = qa_t_values_nar.shape
 
             # Draw ws
-            w1_n1r = ptu.from_numpy(draw_w((n, 1, r), self.b))
-            w2_n1r = ptu.from_numpy(draw_w((n, 1, r), self.b))
+            w1_n1r = ptu.from_numpy(draw_w((n, r), self.b)).unsqueeze(1)
+            w2_n1r = ptu.from_numpy(draw_w((n, r), self.b)).unsqueeze(1)
 
             # Find the inner-products
             prod_1_na = (qa_t_values_nar * w1_n1r).sum(dim=2)
@@ -432,8 +439,8 @@ class ExtendedMDQNCritic(DQNCritic):
         #####################
         if self.consistent:
             # Draw ws
-            w1_n1r1 = ptu.from_numpy(draw_w((n, 1, r, 1), self.b))
-            w2_n1r1 = ptu.from_numpy(draw_w((n, 1, r, 1), self.b))
+            w1_n1r1 = ptu.from_numpy(draw_w((n, r), self.b)).unsqueeze(1).unsqueeze(3)
+            w2_n1r1 = ptu.from_numpy(draw_w((n, r), self.b)).unsqueeze(1).unsqueeze(3)
 
             # Find the inner-products
             prod_1_na, _ = (qa_t_values_nare * w1_n1r1).sum(dim=2).max(dim=2)
