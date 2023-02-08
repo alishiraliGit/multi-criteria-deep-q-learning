@@ -362,3 +362,13 @@ python cs285/scripts/post_process_eval_pruning.py --prefix testcmdqn_eval \
 --seed 1 --env_rew_weights 1 0 0 0 0 0 0 0 0 0 0 \
 --buffer_path './Replay_buffer_extraction/Encoded_paths_all_rewards.pkl'
 ```
+
+python cs285/scripts/run_eval_pruning.py \
+--exp_name test_eval_biom --env_name MIMIC \
+--phase_2_critic_file_prefix pCQLv4_10 \
+--pruning_file_prefix MIMICCQLv4_ --pruning_eps 0.1 \
+--prune_with_icql --env_rew_weights 1 0 0 0 0 0 0 0 0 0 0 \
+--seed 1 --offline --no_weights_in_path \
+--buffer_path './Replay_buffer_extraction/Paths_all_rewards_raw_obs.pkl'
+
+python cs285/scripts/post_process_eval_pruning.py --prefix test_eval_biom --pruning_file_prefix MIMICCQLv4_ --show --critic_prefix pCQLv4_10 --pruned --prune_with_icql --cql --seed 1 --env_rew_weights 1 0 0 0 0 0 0 0 0 0 0 --buffer_path './Replay_buffer_extraction/Paths_all_rewards_raw_obs_biomarkers.pkl'

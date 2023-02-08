@@ -241,7 +241,7 @@ def mimic_optimizer():
         optim_kwargs=dict(
             lr=1,  # 1e-4
         ),
-        learning_rate_schedule=ConstantSchedule(1e-5).value,  # PiecewiseSchedule([(0, 1e-5), (10000, 1e-5), (30000, 1e-4)], outside_value=1e-4).value,
+        learning_rate_schedule=ConstantSchedule(1e-4).value,  # PiecewiseSchedule([(0, 1e-5), (10000, 1e-5), (30000, 1e-4)], outside_value=1e-4).value,
     )
 
 #################

@@ -140,7 +140,7 @@ def plot_binned_mortality(eval_paths, params, critic, critic_baseline=None, fold
             obs_n = obs_n[:, np.newaxis]
 
         ac_n = eval_path['action']
-        re_n = eval_path['reward']
+        re_n = eval_path['sparse_90d_rew']
 
         q_values_n, rtg_n, mean_q, max_rtg = get_q_vals(ac_n,re_n,obs_n,critic)
 
@@ -309,6 +309,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     # Env
+    parser.add_argument('--env_name', type=str, default='LunarLander-Customizable')
     parser.add_argument('--env_rew_weights', type=float, nargs='*', default='None')
     parser.add_argument('--gamma', type=float, nargs='*', default=1)
 
@@ -427,7 +428,12 @@ if __name__ == "__main__":
     with open(params['buffer_path'], 'rb') as f:
         all_paths = pickle.load(f)
 
-    all_paths = utils.format_reward(all_paths, params['env_rew_weights'])
+    if params['env_name'] == 'MIMIC':
+        all_paths = utils.format_reward(all_paths, weights=params['env_rew_weights'])
+    if params['env_name'] == 'MIMIC-Continuous':
+        all_paths = utils.format_reward(all_paths, weights=params['env_rew_weights'], continuous=True)
+    else:
+        raise Exception('Invalid env_name!')
 
     # Let's use 5% as validation set and 15% as hold-out set
     #paths, test_paths = train_test_split(all_paths, test_size=0.15, random_state=params['seed'])

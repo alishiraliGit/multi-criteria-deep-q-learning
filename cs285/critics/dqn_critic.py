@@ -260,6 +260,8 @@ class MDQNCritic(DQNCritic):
         self.b = hparams['w_bound']
         if self.consistent:
             self.alpha = hparams['consistency_alpha']
+        
+        self.no_gpu = hparams['no_gpu']
 
     def get_actor_class(self):
         if self.optimistic:
@@ -326,7 +328,7 @@ class MDQNCritic(DQNCritic):
             likelihood_n = prob_2_n / prob_1_n
 
             # Select the better w
-            if torch.cuda.is_available():
+            if torch.cuda.is_available() and not self.no_gpu:
                 rnd_n = torch.rand(likelihood_n.shape,device='cuda')
             else:
                 rnd_n = torch.rand(likelihood_n.shape)

@@ -125,8 +125,13 @@ class RLEvaluator(object):
             # Load replay buffer data
             with open(self.params['buffer_path'], 'rb') as f:
                 all_paths = pickle.load(f)
-            all_paths = utils.format_reward(all_paths, self.params['env_rew_weights'])
-            # Evaluate on 15% hold-out set
+            if self.params['env_name'] == 'MIMIC':
+                all_paths = utils.format_reward(all_paths, weights=self.params['env_rew_weights'])
+            if self.params['env_name'] == 'MIMIC-Continuous':
+                all_paths = utils.format_reward(all_paths, weights=self.params['env_rew_weights'], continuous=True)
+            else:
+                raise Exception('Invalid env_name!')
+            # Evaluate on 5% hold-out set
             _, paths = train_test_split(all_paths, test_size=0.05, random_state=self.params['seed'])
 
         # We run the loop only once in the MIMIC setting since we do not sample trajectories
@@ -161,7 +166,9 @@ class RLEvaluator(object):
                 action_flags.append(flags)
 
                 # Get reward to go (and transform to mortality indicator, assummes Gamma == 1)
-                rtg_n = utils.discounted_cumsum(path['reward'],
+                # TODO
+                reward_tag = 'sparse_90d_rew'
+                rtg_n = utils.discounted_cumsum(path[reward_tag],
                                                 self.params['gamma']) / 100  # to make this a mortality indicator
                 rtg_n = (rtg_n + 1) / 2
                 all_rtgs.append(rtg_n)
@@ -217,7 +224,6 @@ class RLEvaluator(object):
             'INR':inr, 'MeanBP':meanbp, 'RR': rr, 'SpO2': spo2, 'SysBP': sysbp, 'Temp_C': temp_c, 'GCS': gcs, 'mechvent': mechvent, 'paO2': pao2, 'paCO2': paco2})
         
         if pruning_critic is not None:
-            print('hello')
             output_dict.update({'q_vals': all_q_values})
         
         if pruned_policy is not None:

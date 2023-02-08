@@ -15,16 +15,17 @@ if __name__ == '__main__':
     os.makedirs(save_path_, exist_ok=True)
 
     # Find relevant files
-    r = 0.1
-    tuf = 4000
+    r = 1
+    # tuf = 8000
     cql_alpha = 0.001
-    prefixes_ = ['expvar1clr-5_*_offline_cmdqn_alpha%g_cql%g_r%g_tuf%d_MIMIC' % (alpha, cql_alpha, r, tuf) for alpha in [5, 10, 20]]
+    prefixes_ = ['expvar1clr-5_*_offline_cmdqn_alpha%g_cql%g_r%g_tuf%d_MIMIC' % (alpha, cql_alpha, r, tuf) for tuf in [1000, 2000] for alpha in [5, 10, 20]]
 
-    n_color_ = np.maximum(len(prefixes_), 2)
+    n_color_ = np.maximum(int(len(prefixes_)/2), 2)
     color_ = lambda cnt: ((cnt % n_color_)/(n_color_ - 1), 0, 1 - (cnt % n_color_)/(n_color_ - 1))
+    line_type_ = lambda cnt: '-' if cnt_ < n_color_ else '--'
 
     legends_ = [r'$\alpha$ = ' + s[s.find('alpha') + 5: s.find('cql') - 1] + ', '
-                + r'$r$ = ' + s[s.rfind('r') + 1: s.find('tuf') - 1]
+                + r'tuf = ' + s[s.rfind('tuf') + 3: s.find('MIMIC') - 1]
                 for s in prefixes_]
 
     folder_paths_ = []
@@ -60,7 +61,7 @@ if __name__ == '__main__':
 
         for cnt_ in range(len(xs_)):
             min_len_ = np.minimum(len(xs_[cnt_]), len(y_means_[cnt_]))
-            plt.plot(xs_[cnt_][:min_len_], y_means_[cnt_][:min_len_], color=color_(cnt_))
+            plt.plot(xs_[cnt_][:min_len_], y_means_[cnt_][:min_len_], line_type_(cnt_), color=color_(cnt_))
 
         plt.legend(legends_)
 
@@ -78,6 +79,6 @@ if __name__ == '__main__':
         plt.tight_layout()
 
         if do_save:
-            plt.savefig(os.path.join(save_path_, 'expvar1clr-5_mdqn_cql%g_r%g_tuf%d[%s].pdf' % (cql_alpha, r, tuf, y_tag_)))
+            plt.savefig(os.path.join(save_path_, 'expvar1clr-5_mdqn_cql%g_r%g_tuf%s[%s].pdf' % (cql_alpha, r, '1vs2k', y_tag_)))
 
     plt.show()

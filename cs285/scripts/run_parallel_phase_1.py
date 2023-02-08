@@ -14,7 +14,7 @@ if __name__ == '__main__':
 
     cql_alpha = 0.001
 
-    tuf = 4000
+    tuf = 8000
 
     logs = []
     for idx in range(n):
