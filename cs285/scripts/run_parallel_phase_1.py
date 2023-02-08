@@ -8,8 +8,8 @@ if __name__ == '__main__':
     n = 3
     seed = range(1, n + 1)
 
-    consistency_alpha = 5
-    r = 0.1
+    consistency_alpha = 20
+    r = 10
     w_bound = np.array([1.] + [r] * 5)
 
     cql_alpha = 0.001
@@ -33,13 +33,16 @@ if __name__ == '__main__':
             '--scalar_log_freq 200' + '\n' \
             '--params_log_freq 200' + '\n' \
             '--save_best' + '\n' \
-            '--seed %d' % seed[idx]
+            '--no_gpu' + '\n' \
+            '--seed %d' % seed[idx] #added no_gpu to allow more parallel runs on local machine
 
         print(command)
 
         args = shlex.split(command)
         log = subprocess.Popen(args)
+        log.wait() #added in case parallel processing is not possible on local machine
         logs.append(log)
+        
 
     for log in logs:
         log.wait()
