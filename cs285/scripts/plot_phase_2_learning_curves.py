@@ -16,7 +16,7 @@ if __name__ == '__main__':
 
     # Find relevant files
     cql_alpha = 0.001
-    r = 0.1
+    r = 1
     tuf1 = 1000
     tuf2 = 8000
     prefixes_ = ['expvar1clr1-5lr2-4_*_offline_pruned_cmdqn_alpha%g_cql%g_r%g_tuf1%d_tuf2%d_sparse' % (alpha, cql_alpha, r, tuf1, tuf2) for alpha in [5, 10, 20]] \
@@ -74,6 +74,9 @@ if __name__ == '__main__':
     plt.xlabel('Iterations', fontsize=12)
     plt.ylabel(r'$\rho_{Mortality}$', fontsize=12)
     plt.title('Offline MDQN')
+
+    plt.xlim(left=10000)
+    plt.ylim(bottom=0.16)
 
     plt.tight_layout()
 
