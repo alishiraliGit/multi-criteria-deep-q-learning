@@ -7,7 +7,7 @@ from plot_baseline_learning_curves import get_section_tags, get_section_results
 
 
 if __name__ == '__main__':
-    do_save = True
+    do_save = False
 
     load_path_ = os.path.join('..', '..', 'data')
 

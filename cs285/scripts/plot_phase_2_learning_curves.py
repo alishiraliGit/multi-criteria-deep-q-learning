@@ -77,6 +77,9 @@ if __name__ == '__main__':
     plt.ylabel(r'$\rho_{Mortality}$', fontsize=12)
     plt.title('Offline MDQN')
 
+    plt.xlim(left=10000)
+    plt.ylim(bottom=0.16)
+
     plt.tight_layout()
 
     if do_save:
