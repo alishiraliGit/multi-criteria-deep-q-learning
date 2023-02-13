@@ -11,7 +11,7 @@ if __name__ == '__main__':
     do_save = True
 
     file_path = os.path.join('..', '..', 'Replay_buffer_extraction')
-    file_name = 'Encoded_paths13_all_rewards_biomarkers'
+    file_name = 'Encoded_paths13_all_rewards'
 
     sparse_reward_tag = 'sparse_90d_rew'
     gamma = 1
@@ -57,5 +57,5 @@ if __name__ == '__main__':
 
     # Save results
     if do_save:
-        with open(os.path.join(file_path, file_name + '_var1.pkl'), 'wb') as f:
+        with open(os.path.join(file_path, file_name + '_test.pkl'), 'wb') as f:
             pickle.dump(normalized_paths, f)

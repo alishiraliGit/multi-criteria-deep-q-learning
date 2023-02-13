@@ -16,7 +16,7 @@ if __name__ == '__main__':
 
     # Find relevant files
     cql_alpha = 0.001
-    r = 0.1
+    r = 1
     tuf1 = 1000
     tuf2 = 8000
     prefixes_ = ['expvar1clr1-5lr2-4_*_offline_pruned_cmdqn_alpha%g_cql%g_r%g_tuf1%d_tuf2%d_sparse' % (alpha, cql_alpha, r, tuf1, tuf2) for alpha in [5, 10, 20]] \
@@ -36,6 +36,8 @@ if __name__ == '__main__':
     file_paths_ = []
     for folder_path_ in folder_paths_:
         file_paths_.append([glob.glob(os.path.join(f, 'events*'))[0] for f in folder_path_])
+    
+    print(file_paths_)
 
     # Print tags
     print(get_section_tags(file_paths_[0][0]))

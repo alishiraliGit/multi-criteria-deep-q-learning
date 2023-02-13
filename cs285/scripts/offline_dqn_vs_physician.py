@@ -87,7 +87,10 @@ def get_q_vals(ac_n,re_n,obs_n,critic):
 
 def preprocess_bins(traj_info,q_label='mean_q', baseline = False):
     #bins = np.linspace(np.min(traj_info['mean_q']), np.max(traj_info['mean_q']), 100)
-    bins = np.linspace(np.min(traj_info[q_label])*1.1, np.max(traj_info[q_label])*0.9, 50)
+    #bins = np.linspace(np.min(traj_info[q_label])*1.1, np.max(traj_info[q_label])*0.9, 50)
+    bins = np.linspace(np.min(traj_info[q_label])*1.1, np.max(traj_info[q_label])*0.9, 20)
+
+
     group = traj_info.groupby(pd.cut(traj_info.mean_q, bins))
 
     plot_centers = (bins[:-1] + bins[1:]) / 2
@@ -231,9 +234,9 @@ def plot_binned_mortality(eval_paths, params, critic, critic_baseline=None, fold
     plot_values = plot_values[indices]
     plot_ci = plot_ci[indices]
     plot_range = plot_range[indices]
-    """
+    
 
-    plt.plot(plot_centers, plot_values, label=f'{method} eps={eps}')
+    plt.plot(plot_centers, plot_values, label='MCQL alpha=10') #f'{method} eps={eps}'
 
     # 1 std around mean per bin
     #plt.fill_between(plot_centers, plot_values - plot_range, plot_values + plot_range, color="b", alpha=0.2)
@@ -248,28 +251,34 @@ def plot_binned_mortality(eval_paths, params, critic, critic_baseline=None, fold
     
     plt.ylabel('Survival rate')
     plt.xlabel('Mean Q-value per trajectory')
-    plt.title(f'Survival rate by Q-value {method} eps={eps}')
+    #plt.title(f'Survival rate by Q-value {method} eps={eps}')
 
     plt.legend(loc='best')
     plt.tight_layout()
 
     if params['save']:
         plt.savefig(os.path.join(fig_path_, folder_path + '_survival_by_Q.pdf'))
+    """
 
-    plt.plot(plot_centers, plot_values)
+    plt.plot(plot_centers, plot_values, color="g", label='MCQL alpha=10') #f'{method} eps={eps}'
 
     # 1 std around mean per bin
-    plt.fill_between(plot_centers, plot_values - plot_range, plot_values + plot_range, color="b", alpha=0.2)
-    plt.fill_between(plot_centers, plot_values - plot_ci, plot_values + plot_ci, color="r", alpha=0.2)
+    #plt.fill_between(plot_centers, plot_values - plot_range, plot_values + plot_range, color="b", alpha=0.2)
+    plt.fill_between(plot_centers, plot_values - plot_ci, plot_values + plot_ci, color="g", alpha=0.2)
+
+    if critic_baseline != None:
+        plt.plot(plot_centers_b, plot_values_b, label=f'baseline model')
+        plt.fill_between(plot_centers_b, plot_values_b - plot_ci_b, plot_values_b + plot_ci_b, color="grey", alpha=0.2)
 
     plt.ylabel('Survival rate')
     plt.xlabel('Mean Q-value per trajectory')
-    plt.title(f'Survival rate by Q-value {folder_path}')
+    #plt.title(f'Survival rate by Q-value {folder_path}')
 
+    plt.legend(loc='best')
     plt.tight_layout()
 
     if params['save']:
-        plt.savefig(os.path.join(fig_path_, folder_path + '_survival_by_Q.jpg'))
+        plt.savefig(os.path.join(fig_path_, folder_path + '_survival_by_Q.pdf'))
 
     plt.show()
 
@@ -295,7 +304,7 @@ def plot_binned_mortality(eval_paths, params, critic, critic_baseline=None, fold
     plt.legend(loc='upper right')
 
     if params['save']:
-        plt.savefig(os.path.join(fig_path_, folder_path + '_Q_val_hist.jpg'))
+        plt.savefig(os.path.join(fig_path_, folder_path + '_Q_val_hist.pdf'))
 
     plt.show()
 
