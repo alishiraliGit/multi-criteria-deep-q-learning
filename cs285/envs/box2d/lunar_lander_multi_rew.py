@@ -280,7 +280,7 @@ class LunarLander(gym.Env):
             self.world.DestroyBody(self.particles.pop(0))
 
     # TODO
-    # Ali added
+    #  added
     def careless_step(self, action):
         return self._step(action)
 
