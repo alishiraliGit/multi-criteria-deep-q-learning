@@ -218,7 +218,69 @@ def plot_action_dist(phys_actions, pareto_actions, non_pareto_actions, eps='None
 
     #Plot distributions
 
-    f, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(16,4))
+    f, (ax1, ax3) = plt.subplots(2, 1, figsize=(4,8))
+    ax1.imshow(np.flipud(hist), cmap="Blues",extent=[x_edges[0], x_edges[-1],  y_edges[0],y_edges[-1]])
+    #ax2.imshow(np.flipud(hist2), cmap="OrRd", extent=[x_edges[0], x_edges[-1],  y_edges[0],y_edges[-1]])
+    ax3.imshow(np.flipud(hist3), cmap="Greens", extent=[x_edges[0], x_edges[-1],  y_edges[0],y_edges[-1]])
+
+    # ax1.grid(color='b', linestyle='-', linewidth=1)
+    # ax2.grid(color='r', linestyle='-', linewidth=1)
+    # ax3.grid(color='g', linestyle='-', linewidth=1)
+
+    # Major ticks
+    ax1.set_xticks(np.arange(0, 5, 1));
+    ax1.set_yticks(np.arange(0, 5, 1));
+    #ax2.set_xticks(np.arange(0, 5, 1));
+    #ax2.set_yticks(np.arange(0, 5, 1));
+    ax3.set_xticks(np.arange(0, 5, 1));
+    ax3.set_yticks(np.arange(0, 5, 1));
+
+    # Labels for major ticks
+    ax1.set_xticklabels(np.arange(0, 5, 1));
+    ax1.set_yticklabels(np.arange(0, 5, 1));
+    #ax2.set_xticklabels(np.arange(0, 5, 1));
+    #ax2.set_yticklabels(np.arange(0, 5, 1));
+    ax3.set_xticklabels(np.arange(0, 5, 1));
+    ax3.set_yticklabels(np.arange(0, 5, 1));
+
+    # Minor ticks
+    ax1.set_xticks(np.arange(-.5, 5, 1), minor=True);
+    ax1.set_yticks(np.arange(-.5, 5, 1), minor=True);
+    #ax2.set_xticks(np.arange(-.5, 5, 1), minor=True);
+    #ax2.set_yticks(np.arange(-.5, 5, 1), minor=True);
+    ax3.set_xticks(np.arange(-.5, 5, 1), minor=True);
+    ax3.set_yticks(np.arange(-.5, 5, 1), minor=True);
+
+    # Gridlines based on minor ticks
+    ax1.grid(which='minor', color='b', linestyle='-', linewidth=1)
+    #ax2.grid(which='minor', color='g', linestyle='-', linewidth=1)
+    ax3.grid(which='minor', color='r', linestyle='-', linewidth=1)
+
+    im1 = ax1.pcolormesh(x_edges, y_edges, hist, cmap='Blues')
+    f.colorbar(im1, ax=ax1, label = "Action counts")
+
+    #im2 = ax2.pcolormesh(x_edges, y_edges, hist2, cmap='Greens')
+    #f.colorbar(im2, ax=ax2, label = "Action counts")
+
+    im3 = ax3.pcolormesh(x_edges, y_edges, hist3, cmap='OrRd')
+    f.colorbar(im3, ax=ax3, label = "Action counts")
+
+    ax1.set_ylabel('IV fluid dose')
+    #ax2.set_ylabel('IV fluid dose')
+    ax3.set_ylabel('IV fluid dose')
+    ax1.set_xlabel('Vasopressor dose')
+    #ax2.set_xlabel('Vasopressor dose')
+    ax3.set_xlabel('Vasopressor dose')
+
+    ax1.set_title("Physician policy")
+    #ax2.set_title("RL policy actions")
+    ax3.set_title("Pruned actions")
+
+    #f.suptitle(f'Action distribution eps = {eps}')
+    plt.tight_layout()
+
+    """
+    f, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(4,12))
     ax1.imshow(np.flipud(hist), cmap="Blues",extent=[x_edges[0], x_edges[-1],  y_edges[0],y_edges[-1]])
     ax2.imshow(np.flipud(hist2), cmap="OrRd", extent=[x_edges[0], x_edges[-1],  y_edges[0],y_edges[-1]])
     ax3.imshow(np.flipud(hist3), cmap="Greens", extent=[x_edges[0], x_edges[-1],  y_edges[0],y_edges[-1]])
@@ -276,8 +338,9 @@ def plot_action_dist(phys_actions, pareto_actions, non_pareto_actions, eps='None
     ax2.set_title("RL policy actions")
     ax3.set_title("Non pareto-set actions")
 
-    f.suptitle(f'Action distribution eps = {eps}')
+    #f.suptitle(f'Action distribution eps = {eps}')
     plt.tight_layout()
+    """
 
     if params['save']:
         plt.savefig(os.path.join(fig_path_, folderpath + '_action_dist_phy_rl_prun.pdf'))
@@ -615,6 +678,7 @@ if __name__ == "__main__":
     # ['SOFA', 'SIRS', 'Arterial_lactate', 'Arterial_pH', 'BUN', 'HR', 'DiaBP', 'INR', 'MeanBP', 'RR', 'SpO2',
     # 'SysBP', 'Temp_C', 'GCS', 'mechvent', 'paO2', 'paCO2']
 
+    """
     sofa = [get_action_set_data(file, 'SOFA') for file in file_paths_]
     sirs = [get_action_set_data(file, 'SIRS') for file in file_paths_]
     arterial_lactate = [get_action_set_data(file, 'Arterial_lactate') for file in file_paths_]
@@ -632,7 +696,7 @@ if __name__ == "__main__":
     mechvent = [get_action_set_data(file, 'mechvent') for file in file_paths_]
     paO2 = [get_action_set_data(file, 'paO2') for file in file_paths_]
     paCO2 = [get_action_set_data(file, 'paCO2') for file in file_paths_]
-
+    """
     
     #final policy action in dict
     policy_actions_in_dict = [tag_in_dict(file, 'policy_actions') for file in file_paths_]
@@ -681,6 +745,7 @@ if __name__ == "__main__":
 
     #sort the biomarkers
 
+    """
     sofa = sort_the_list(eps_list,sofa)
     sirs = sort_the_list(eps_list,sirs)
     arterial_lactate = sort_the_list(eps_list,arterial_ph)
@@ -697,6 +762,7 @@ if __name__ == "__main__":
     mechvent = sort_the_list(eps_list,mechvent)
     paO2 = sort_the_list(eps_list,paO2)
     paCO2 = sort_the_list(eps_list,paCO2)
+    """
 
     ##################################
     # Pruning (if requested)
@@ -799,20 +865,20 @@ if __name__ == "__main__":
         non_pareto_actions = unpack_actions(pruned_action_sets[i])
         path_for_plot = folder_paths_short[i]
         plot_action_dist(phys_actions, policy_actions, non_pareto_actions, eps, folderpath=path_for_plot, figurepath = fig_path_)
-        print('Now Pareto-actions')
-        plot_action_dist(phys_actions, pareto_actions, non_pareto_actions, eps, folderpath=path_for_plot, figurepath = fig_path_)
+        #print('Now Pareto-actions')
+        #plot_action_dist(phys_actions, pareto_actions, non_pareto_actions, eps, folderpath=path_for_plot, figurepath = fig_path_)
 
         print(len(phys_actions))
         print(len(policy_actions))
-        print(len(sofa[0]))
+        #print(len(sofa[0]))
         print(len(pareto_action_sets[0]))
         print(len(pareto_actions))
         print(len(non_pareto_actions))  
 
-        sofa_exp = sofa[i]
+        #sofa_exp = sofa[i]
 
 
-        plot_action_dist_by_sofa(phys_actions, pareto_action_sets[i], pruned_action_sets[i], policy_actions, sofa_exp, eps, folderpath=path_for_plot, figurepath = fig_path_)
+        #plot_action_dist_by_sofa(phys_actions, pareto_action_sets[i], pruned_action_sets[i], policy_actions, sofa_exp, eps, folderpath=path_for_plot, figurepath = fig_path_)
     
     #######################################################################
     ################## Mortality by behavior vs. policy  ##################

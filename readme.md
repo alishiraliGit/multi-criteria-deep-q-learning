@@ -1,9 +1,62 @@
+# Multi-Criteria Deep Q-Learning for Critical Care Applications 
+
+# MIMIC data processing
+
+To process the MIMIC-III data we closely follow the procedures outlined in "The AI Clinician" paper ([Komorowski, et al](https://www.nature.com/articles/s41591-018-0213-5?sf200531662=1)): and the accompanying Matlab repo https://github.com/matthieukomorowski/AI_Clinician. As well as the python implementation of this processing pipeline created by XXXXX. Substantial parts of the description of the data processing pipeline are taken over from these sources.
+
+#### 1) Setting up the MIMIC-III Database
+You need to first set up and configure MIMIC III database. The details are provided here:
+
+https://mimic.physionet.org/
+
+The MIMIC database is publicly available; however, accessing MIMIC requires additional steps which are explained at the hosting webpage.
+
+We chose to use a PostgresSQL server to manage the database (hence our use of the `psycopg2` library requirement--see `requirements.txt`). Other options and formats are available, see the [MIMIC repository](https://github.com/MIT-LCP/mimic-code/tree/master/buildmimic) for examples and alternatives.
+
+After downloading and setting up the SQL files and performing all the steps from the physionet link above, you should be able to use this codebase without too much additional set-up.
+
+#### 2) Run `Replay_buffer_extraction/preprocess.py`
+
+This script accesses the MIMIC database and extracts sub-tables for use in defining the final septic patient cohort in the next step.
+
+There are 43 tables in the Mimic III database, 26 are unique and the other 17 are partitions of chartevents that are not to be queried directly (see: [https://mit-lcp.github.io/mimic-schema-spy/](https://mit-lcp.github.io/mimic-schema-spy/) for further guidance).
+
+Ulitmately, we create 15 sub-tables when extracting from the database. These subtables are stored in a subfolder `processed_files/` that can be created manually. This script will create the subfolder if it doesn't already exist.
+
+The [preamble](https://github.com/microsoft/mimic_sepsis/blob/main/preprocess.py#L17-L26) of this file will likely be the only editing needed to direct toward where a user's access to the MIMIC database is defined as well as where they choose save off the intermediate files.
+
+Depending on the I/O readout speed and network connectivity (assuming that the MIMIC database is saved on a server) this script can take several hours to run completely.
+
+#### 3) Run `Replay_buffer_extraction/sepsis_def.py`
+
+Using the sepsis3 criteria, this script uses the preprocessed intermediate tables produced in the prior step to define a cohort of septic patients. This cohort definition was spefically designed for use in sequential decision making purposes, yet this cohort definition code does not partition temporally spaced observations as individual data points. This script instead populates a table of patients who develop sepsis at some point during their treatment in the ICU and includes all observations 24 hours before until 48 hours after presumed onset of sepsis. 
+
+This script creates the file 'step_3_start.pkl' which will be needed in the subsequent step.
+
+#### 4) Run `Replay_buffer_extraction/mimic3_dataset.py`
+This step collapses the extracted data of the sepsis cohort into one single file and creates 'step_4_start.pkl' which will be needed in the subsequent step.
+
+#### 5) Run `Replay_buffer_extraction/Build_replay_buffer.py`
+
+This script discretizes the state space and creates the (state,action,next state, reward) tuples and returns the respective transtions tables 'MIMICtable_transitions.csv' and 'MIMICtable_plus_SanSTR.csv'.
+
+#### 6) Run `Replay_buffer_extraction/Create_RL_path_files.py`
+This script converts the transition tables into the Path data format that is used to throughout the RL pipeline
+
+#### 7) Run `c285/scripts/seq2vec.py`
+This script uses a variation of word2vec to map the cluster labels into a numerically meaningful 13-dimensional vector.
+
+
+# Learning algorithms
+
 ## Setup
 I recommend creating a new virtual environment for this project and
 install the requirements directly from [requirements.txt](requirements.txt).
 
 ## Environment specification
-Currently, only LunarLander for online setting and MIMIC-III for offline setting are available. 
+This repository supports LunarLander for off-policy learning and uses MIMIC-III data for offline learning. 
+
+## LunarLander Experiments
 
 ### Customized rewards
 You can run DQN on LunarLander with customized rewards by choosing `LunarLander-Customizable`
@@ -372,3 +425,73 @@ python cs285/scripts/run_eval_pruning.py \
 --buffer_path './Replay_buffer_extraction/Paths_all_rewards_raw_obs.pkl'
 
 python cs285/scripts/post_process_eval_pruning.py --prefix test_eval_biom --pruning_file_prefix MIMICCQLv4_ --show --critic_prefix pCQLv4_10 --pruned --prune_with_icql --cql --seed 1 --env_rew_weights 1 0 0 0 0 0 0 0 0 0 0 --buffer_path './Replay_buffer_extraction/Paths_all_rewards_raw_obs_biomarkers.pkl'
+
+####################################
+#####################################
+####################################
+
+Learning curves
+python plot_phase_1_learning_curves.py
+
+Survival curve 
+python cs285/scripts/offline_dqn_vs_physician.py --env_name MIMIC-Continuous --env_rew_weights 1 0 0 0 0 0 --critic_prefix expvar1clr1-5lr2-4_3_offline_pruned_cmdqn_alpha10_cql0.001_r1_tuf11000_tuf28000_sparse --seed 3 --offline --buffer_path "Replay_buffer_extraction/Encoded_paths13_all_rewards_var1.pkl"
+
+
+python cs285/scripts/run_eval_pruning.py \
+--exp_name expvar1clr1-5lr2-4_1_offline_cmdqn_alpha20_cql0.001_r1_tuf11000_tuf28000_eval \
+--env_name MIMIC-Continuous \
+--offline --buffer_path 'Replay_buffer_extraction/Encoded_paths13_all_rewards_var1.pkl' \
+--env_rew_weights 1 0 0 0 0 0 \
+--prune_with_mdqn \
+--pruning_file_prefix expvar1clr-5_*_offline_cmdqn_alpha20_cql0.001_r1_tuf8000_MIMIC \
+--pruning_n_draw 100 \
+--phase_2_critic_file_prefix expvar1clr1-5lr2-4_*_offline_pruned_cmdqn_alpha20_cql0.001_r1_tuf11000_tuf28000_sparse \
+--no_weights_in_path \
+--seed 1
+
+
+####################################
+#####################################
+####################################
+
+
+python cs285/scripts/run_eval_pruning.py --exp_name expvar1clr1-5lr2-4_1_offline_cmdqn_alpha20_cql0.001_r1_tuf11000_tuf28000_eval --env_name MIMIC-Continuous --offline --seed 1 --buffer_path 'Replay_buffer_extraction/Encoded_paths13_all_rewards_var1.pkl' --env_rew_weights 1 0 0 0 0 0 --prune_with_mdqn --pruning_file_prefix expvar1clr-5_1_offline_cmdqn_alpha20_cql0.001_r1_tuf8000_MIMIC --pruning_n_draw 100 --phase_2_critic_file_prefix expvar1clr1-5lr2-4_1_offline_pruned_cmdqn_alpha20_cql0.001_r1_tuf11000_tuf28000_sparse --no_weights_in_path
+
+
+```
+python cs285/scripts/post_process_eval_pruning.py --prefix expvar1clr1-5lr2-4_2_offline_cmdqn_alpha10_cql0.001_r1_tuf11000_tuf28000_eval \
+--pruning_file_prefix expvar1clr-5_2_offline_cmdqn_alpha10_cql0.001_r1_tuf8000_MIMIC --show \
+--critic_prefix expvar1clr1-5lr2-4_2_offline_pruned_cmdqn_alpha10_cql0.001_r1_tuf11000_tuf28000_sparse \
+--pruned --prune_with_mdqn --mdqn \
+--seed 2 --env_rew_weights 1 0 0 0 0 0 0 0 0 0 0 \
+--buffer_path './Replay_buffer_extraction/Encoded_paths_all_rewards_var1.pkl'
+```
+
+python cs285/scripts/post_process_eval_pruning.py --prefix expvar1clr1-5lr2-4_2_offline_cmdqn_alpha20_cql0.001_r1_tuf11000_tuf28000_eval \
+--pruning_file_prefix expvar1clr-5_2_offline_cmdqn_alpha20_cql0.001_r1_tuf8000_MIMIC --show \
+--critic_prefix expvar1clr1-5lr2-4_2_offline_pruned_cmdqn_alpha20_cql0.001_r1_tuf11000_tuf28000_sparse \
+--pruned --prune_with_mdqn --mdqn \
+--seed 2 --env_rew_weights 1 0 0 0 0 0 0 0 0 0 0 \
+--buffer_path './Replay_buffer_extraction/Encoded_paths_all_rewards_var1.pkl' --save
+
+python cs285/scripts/post_process_eval_pruning.py --prefix expvar1clr1-5lr2-4_3_offline_cmdqn_alpha10_cql0.001_r1_tuf11000_tuf28000_eval \
+--pruning_file_prefix expvar1clr-5_3_offline_cmdqn_alpha10_cql0.001_r1_tuf8000_MIMIC --show \
+--critic_prefix expvar1clr1-5lr2-4_3_offline_pruned_cmdqn_alpha10_cql0.001_r1_tuf11000_tuf28000_sparse \
+--pruned --prune_with_mdqn --mdqn \
+--seed 3 --env_rew_weights 1 0 0 0 0 0 0 0 0 0 0 \
+--buffer_path './Replay_buffer_extraction/Encoded_paths_all_rewards_var1.pkl'
+
+python cs285/scripts/post_process_eval_pruning.py --prefix expvar1clr1-5lr2-4_1_offline_cmdqn_alpha5_cql0.001_r1_tuf11000_tuf28000_eval \
+--pruning_file_prefix expvar1clr-5_1_offline_cmdqn_alpha10_cql0.001_r1_tuf8000_MIMIC --show \
+--critic_prefix expvar1clr1-5lr2-4_1_offline_pruned_cmdqn_alpha10_cql0.001_r1_tuf11000_tuf28000_sparse \
+--pruned --prune_with_mdqn --mdqn \
+--seed 1 --env_rew_weights 1 0 0 0 0 0 0 0 0 0 0 \
+--buffer_path './Replay_buffer_extraction/Encoded_paths_all_rewards_var1.pkl'
+
+
+python cs285/scripts/post_process_eval_pruning.py --prefix expvar1clr1-5lr2-4_2_offline_cmdqn_alpha20_cql0.001_r1_tuf11000_tuf28000_eval \
+--pruning_file_prefix expvar1clr-5_2_offline_cmdqn_alpha5_cql0.001_r1_tuf8000_MIMIC --show \
+--critic_prefix expvar1clr1-5lr2-4_2_offline_pruned_cmdqn_alpha5_cql0.001_r1_tuf11000_tuf28000_sparse \
+--pruned --prune_with_mdqn --mdqn \
+--seed 2 --env_rew_weights 1 0 0 0 0 0 0 0 0 0 0 \
+--buffer_path './Replay_buffer_extraction/Encoded_paths_all_rewards_var1.pkl'
