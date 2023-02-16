@@ -57,5 +57,5 @@ if __name__ == '__main__':
 
     # Save results
     if do_save:
-        with open(os.path.join(file_path, file_name + '_var1.pkl'), 'wb') as f:
+        with open(os.path.join(file_path, file_name + '_test.pkl'), 'wb') as f:
             pickle.dump(normalized_paths, f)

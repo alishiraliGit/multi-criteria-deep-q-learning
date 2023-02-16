@@ -52,6 +52,8 @@ if __name__ == '__main__':
     file_paths_ = []
     for folder_path_ in folder_paths_:
         file_paths_.append([glob.glob(os.path.join(f, 'events*'))[0] for f in folder_path_])
+    
+    print(file_paths_)
 
     # Print tags
     print(get_section_tags(file_paths_[0][0]))
