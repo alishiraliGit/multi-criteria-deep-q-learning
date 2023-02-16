@@ -109,6 +109,16 @@ if __name__ == '__main__':
     xs_ = [get_section_results(f, [x_tag_])[x_tag_] for f in file_paths_]
     ys_ = [get_section_results(f, [y_tag_])[y_tag_] for f in file_paths_]
 
+    print([np.max(y) for y in ys_])
+    y_mat_ = np.array(ys_)
+    y_mean_ = np.mean(y_mat_, axis=0)
+    y_std_ = np.std(y_mat_, axis=0)
+    max_idx_ = np.argmax(y_mean_)
+    print(y_mean_[max_idx_], y_std_[max_idx_]/np.sqrt(2))
+
+    y_max_ = np.max(ys_, axis=1)
+    print(np.mean(y_max_), np.std(y_max_)/np.sqrt(2))
+
     #xs_l = [len(b) for b in xs_]
     #ys_l = [len(b) for b in ys_]
 

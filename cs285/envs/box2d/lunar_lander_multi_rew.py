@@ -137,6 +137,7 @@ class LunarLander(gym.Env):
         self.action_space = spaces.Discrete(N_ACT_DIM)
 
         self.reward_dim = 4
+        self.episode_final_rewards = []
 
         self.curr_step = None
 
@@ -382,6 +383,10 @@ class LunarLander(gym.Env):
             elif timeout:
                 self.lander.color1 = (255, 0, 0)
         info = {}
+
+        # Added by Ali
+        if done:
+            self.episode_final_rewards.append(rewards[-1])
 
         return np.array(state), rewards, done, info
 

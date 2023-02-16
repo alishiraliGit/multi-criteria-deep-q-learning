@@ -35,15 +35,19 @@ if __name__ == '__main__':
 
     # Find relevant files
     # prefixes_ = ['expvar1clr-4_*_offline_baseline_cql%g_r%g_tuf%d_MIMIC' % (cql_alpha, r, tuf) for cql_alpha in [0.001] for r in [0, 0.001, 0.01, 0.1, 1] for tuf in [8000]] \
-    prefixes_ = ['expvar1clr-4_*_offline_baseline_cql%g_r0_tuf%d_MIMIC' % (0.001, tuf) for tuf in [8000] for dim in [0]] \
-        + ['expvar1clr-4inter%d_*_offline_baseline_cql%g_tuf%d_MIMIC' % (dim, 0.001, tuf) for tuf in [8000] for dim in [2, 4]]
+    prefixes_ = \
+        ['expvar1clr-4inter%d_*_offline_baseline_cql%g_tuf%d_MIMIC' % (dim, 0.001, 8000) for dim in [2, 4]] \
+        + ['expvar1clr-4_*_offline_baseline_cql%g_r0_tuf%d_MIMIC' % (0.001, 8000) for dim in [0]] \
+        + ['expvar1clr-5inter%d_*_offline_baseline_cql%g_tuf%d_MIMIC' % (dim, 0.001, 2000) for dim in [2, 4]] \
 
-    n_color_ = np.maximum(2, len(prefixes_))
+    # n_color_ = np.maximum(2, len(prefixes_))
+    n_color_ = 3
     color_ = lambda cnt: ((cnt % n_color_)/(n_color_ - 1), 0, 1 - (cnt % n_color_)/(n_color_ - 1))
 
     # legends_ = [r'$\alpha_{CQL}$ = ' + s[s.find('cql') + 3: s.find('sparse') - 1] for s in prefixes_[:n_color_]]
     # legends_ = [r'$r=$%s' % s[s.rfind('_r') + 2: s.find('tuf') - 1] for s in prefixes_[:n_color_]]
-    legends_ = ['sparse', 'SOFA-1', 'LAC-1']
+    legends_ = ['SOFA-1 (lr=1e-4, TUF=8000)', 'LAC-1 (lr=1e-4, TUF=8000)', 'sparse (lr=1e-4, TUF=8000)',
+                'SOFA-1 (lr=1e-5, TUF=2000)', 'LAC-1 (lr=1e-5, TUF=2000)']
 
     folder_paths_ = []
     for prefix_ in prefixes_:
@@ -98,6 +102,6 @@ if __name__ == '__main__':
 
     if do_save:
         # plt.savefig(os.path.join(save_path_, 'expvar1c_lr-4_effect_of_r.pdf'))
-        plt.savefig(os.path.join(save_path_, 'expvar1c_lr-4_sparse_vs_inter.pdf'))
+        plt.savefig(os.path.join(save_path_, 'expvar1c_sparse_vs_inter.pdf'))
 
     plt.show()

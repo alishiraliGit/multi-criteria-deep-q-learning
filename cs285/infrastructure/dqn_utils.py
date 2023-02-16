@@ -135,10 +135,10 @@ def get_env_kwargs(env_name):
             'learning_starts': 1000,
             'learning_freq': 1,
             'frame_history_len': 1,
-            'target_update_freq': 3000,
+            # 'target_update_freq': 3000,  will be overridden
             'grad_norm_clipping': 10,
             'lander': True,
-            'num_timesteps': 500000, #changed from 300k
+            'num_timesteps': 500000,  # changed from 300k
             'env_wrappers': empty_wrapper,
             # Added by Ali
             'ep_len': 200,
@@ -175,8 +175,7 @@ def empty_wrapper(env):
 # Lander functions
 ###################
 
-def create_lander_q_network(ob_dim, num_actions, num_rewards=1, ex_dim=1):
-    d = 64
+def create_lander_q_network(ob_dim, num_actions, num_rewards=1, ex_dim=1, d=64):
     if ex_dim > 1:
         output_layer = ptu.MultiDimLinear(d, (num_actions, num_rewards, ex_dim))
     else:

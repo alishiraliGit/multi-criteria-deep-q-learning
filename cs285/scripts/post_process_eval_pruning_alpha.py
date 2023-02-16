@@ -152,7 +152,7 @@ if __name__ == "__main__":
     exp_name_ = 'p9_eps0.3_alpha100_eval_LunarLander-Customizable'
     # 'p7_eps0.0-0.0_alpha100_eval_LunarLander-Customizable'
 
-    all_folders_ = glob.glob(os.path.join(data_path_, exp_name_ + '*'))
+    all_folders_ = glob.glob(os.path.join(data_path, exp_name_ + '*'))
     if len(all_folders_) > 1:
         raise Exception('More than one folder with this exp_name prefix found!')
     if len(all_folders_) == 0:
@@ -469,13 +469,13 @@ if __name__ == "__main__":
     ###############################
 
     # Path settings
-    data_path_ = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'data')
-    fig_path_ = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'figs')
-    if not(os.path.exists(fig_path_)):
-        os.makedirs(fig_path_)
+    data_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'data')
+    fig_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'figs')
+    if not(os.path.exists(fig_path)):
+        os.makedirs(fig_path)
 
     #get relevant files
-    folder_paths_ = glob.glob(os.path.join(data_path_, params['prefix'] + '*'))
+    folder_paths_ = glob.glob(os.path.join(data_path, params['prefix'] + '*'))
     file_paths_ = [glob.glob(os.path.join(f, 'actions*'))[0] for f in folder_paths_]
 
     #get action_set for optimal and pareto actions
@@ -504,7 +504,7 @@ if __name__ == "__main__":
     exp_name_ = 'p9_eps0.3_alpha100_eval_LunarLander-Customizable'
     # 'p7_eps0.0-0.0_alpha100_eval_LunarLander-Customizable'
 
-    all_folders_ = glob.glob(os.path.join(data_path_, exp_name_ + '*'))
+    all_folders_ = glob.glob(os.path.join(data_path, exp_name_ + '*'))
     if len(all_folders_) > 1:
         raise Exception('More than one folder with this exp_name prefix found!')
     if len(all_folders_) == 0:
@@ -551,7 +551,7 @@ if __name__ == "__main__":
         plt.xlim(0, 25)
 
         if params['save']:
-            plt.savefig(os.path.join(fig_path_, folder_paths_short[i] + '_counts.jpg'))
+            plt.savefig(os.path.join(fig_path, folder_paths_short[i] + '_counts.jpg'))
 
         plt.show()
 
@@ -584,7 +584,7 @@ if __name__ == "__main__":
     plt.tight_layout()
 
     if params['save']:
-        plt.savefig(os.path.join(fig_path_, folder_paths_short[i] + '_mean_set_size.jpg'))
+        plt.savefig(os.path.join(fig_path, folder_paths_short[i] + '_mean_set_size.jpg'))
 
     plt.show()
 
@@ -618,7 +618,7 @@ if __name__ == "__main__":
     plt.tight_layout()
 
     if params['save']:
-        plt.savefig(os.path.join(fig_path_, folder_paths_short[i] + '_mean_pareto_acc.jpg'))
+        plt.savefig(os.path.join(fig_path, folder_paths_short[i] + '_mean_pareto_acc.jpg'))
 
     plt.show()
 
@@ -650,7 +650,7 @@ if __name__ == "__main__":
         plt.title(f'Pareto-set accuracy by size eps={alpha_list_sorted[i]}')
 
         if params['save']:
-            plt.savefig(os.path.join(fig_path_, folder_paths_short[i] + '_acc_by_size.jpg'))
+            plt.savefig(os.path.join(fig_path, folder_paths_short[i] + '_acc_by_size.jpg'))
 
         plt.show()
 

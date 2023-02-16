@@ -165,9 +165,13 @@ class RLEvaluator(object):
                 flags = [1 if path['action'][i] in pareto_actions[i] else 0 for i in range(len(path['action']))]
                 action_flags.append(flags)
 
-                # Get reward to go (and transform to mortality indicator, assummes Gamma == 1)
+                # Get reward to go (and transform to mortality indicator, assumes Gamma == 1)
                 # TODO
-                reward_tag = 'sparse_90d_rew'
+                if self.params['env_name'].startswith('LunarLander'):
+                    reward_tag = 'reward'
+                else:
+                    reward_tag = 'sparse_90d_rew'
+
                 rtg_n = utils.discounted_cumsum(path[reward_tag],
                                                 self.params['gamma']) / 100  # to make this a mortality indicator
                 rtg_n = (rtg_n + 1) / 2
@@ -190,30 +194,33 @@ class RLEvaluator(object):
                         ac_n_policy = pruned_policy.get_action(ob)
                         traj_actions.append(ac_n_policy)
                     policy_actions.append(traj_actions)
-                
-                buffer_path_list = buffer_path.split("_")
 
-                #If we have biomarkers we extract these as well and add them to the actions file
-                if 'biomarkers.pkl' in buffer_path_list:
-                    # ['SOFA', 'SIRS', 'Arterial_lactate', 'Arterial_pH', 'BUN', 'HR', 'DiaBP', 'INR', 'MeanBP', 'RR', 'SpO2',
-                    # 'SysBP', 'Temp_C', 'GCS', 'mechvent', 'paO2', 'paCO2']
-                    sofa.append(path['SOFA'].tolist())
-                    sirs.append(path['SIRS'].tolist())
-                    art_lactate.append(path['Arterial_lactate'].tolist())
-                    art_ph.append(path['Arterial_pH'].tolist())
-                    bun.append(path['BUN'].tolist())
-                    hr.append(path['HR'].tolist())
-                    diabp.append(path['DiaBP'].tolist())
-                    inr.append(path['INR'].tolist())
-                    meanbp.append(path['MeanBP'].tolist())
-                    rr.append(path['RR'].tolist())
-                    spo2.append(path['SpO2'].tolist())
-                    sysbp.append(path['SysBP'].tolist())
-                    temp_c.append(path['Temp_C'].tolist())
-                    gcs.append(path['GCS'].tolist())
-                    mechvent.append(path['mechvent'].tolist())
-                    pao2.append(path['paO2'].tolist())
-                    paco2.append(path['paCO2'].tolist())
+                if buffer_path is None:
+                    buffer_path_list = []
+                else:
+                    buffer_path_list = buffer_path.split("_")
+
+                    #If we have biomarkers we extract these as well and add them to the actions file
+                    if 'biomarkers.pkl' in buffer_path_list:
+                        # ['SOFA', 'SIRS', 'Arterial_lactate', 'Arterial_pH', 'BUN', 'HR', 'DiaBP', 'INR', 'MeanBP', 'RR', 'SpO2',
+                        # 'SysBP', 'Temp_C', 'GCS', 'mechvent', 'paO2', 'paCO2']
+                        sofa.append(path['SOFA'].tolist())
+                        sirs.append(path['SIRS'].tolist())
+                        art_lactate.append(path['Arterial_lactate'].tolist())
+                        art_ph.append(path['Arterial_pH'].tolist())
+                        bun.append(path['BUN'].tolist())
+                        hr.append(path['HR'].tolist())
+                        diabp.append(path['DiaBP'].tolist())
+                        inr.append(path['INR'].tolist())
+                        meanbp.append(path['MeanBP'].tolist())
+                        rr.append(path['RR'].tolist())
+                        spo2.append(path['SpO2'].tolist())
+                        sysbp.append(path['SysBP'].tolist())
+                        temp_c.append(path['Temp_C'].tolist())
+                        gcs.append(path['GCS'].tolist())
+                        mechvent.append(path['mechvent'].tolist())
+                        pao2.append(path['paO2'].tolist())
+                        paco2.append(path['paCO2'].tolist())
 
         # Log/save
 

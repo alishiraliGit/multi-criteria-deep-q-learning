@@ -54,4 +54,4 @@ if __name__ == "__main__":
     
 
     #if params['save']:
-            #plt.savefig(os.path.join(fig_path_, folder_paths_short[i] + '_counts.jpg'))
+            #plt.savefig(os.path.join(fig_path, folder_paths_short[i] + '_counts.jpg'))

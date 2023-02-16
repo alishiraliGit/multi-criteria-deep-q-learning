@@ -7,13 +7,15 @@ import statistics
 from collections import Counter
 
 if __name__ == "__main__":
+    do_save = False
+
     # Path settings
     data_path_ = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'data')
     fig_path_ = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'figs')
     if not (os.path.exists(fig_path_)):
         os.makedirs(fig_path_)
 
-    exp_name_ = 'exprslowtarget1000_1_offline_cmdqn_alpha5_cql0.001_r1_eval'
+    exp_name_ = 'expvar1clr1-5lr2-4_3_offline_cmdqn_alpha5_cql0.001_r1_tuf11000_tuf28000_eval'
     #exp_name_ = 'sanity_check_cmdqn_eval'
 
     all_folders_ = glob.glob(os.path.join(data_path_, exp_name_ + '*'))
@@ -31,6 +33,8 @@ if __name__ == "__main__":
 
     opt_actions = actions_dict_['opt_actions']
     pruned_actions = actions_dict_['pruned_actions']
+    if 'policy_actions' in actions_dict_:
+        policy_actions = actions_dict_['policy_actions']
 
     # Merge all trajectories
     optimal_set = []
@@ -40,6 +44,11 @@ if __name__ == "__main__":
     pareto_set = []
     for pareto_opt_actions_per_path in pruned_actions:
         pareto_set += pareto_opt_actions_per_path
+
+    if 'policy_actions' in actions_dict_:
+        policy_set = []
+        for pol_actions_per_path in policy_actions:
+            policy_set += pol_actions_per_path
 
     # Analyze Pareto action space
     pareto_sizes = [len(x) for x in pareto_set]
@@ -59,7 +68,8 @@ if __name__ == "__main__":
     plt.xlabel('Pareto set size (# of actions)')
     plt.title('Pareto-set size distribution')
 
-    plt.savefig(os.path.join(fig_path_, exp_name_ + '_counts.pdf'))
+    if do_save:
+        plt.savefig(os.path.join(fig_path_, exp_name_ + '_counts.pdf'))
 
     plt.show()
 
@@ -71,6 +81,12 @@ if __name__ == "__main__":
 
     print(f'Overall {pareto_mean_accuracy} % of the pareto sets contain the action selected by the network trained' +
           f' using the correct reward function')
+
+    if 'policy_actions' in actions_dict_:
+        policy_accuracy = [1 if y == x else 0 for x, y in zip(optimal_set, policy_set)]
+        policy_mean_accuracy = statistics.mean(policy_accuracy) * 100
+
+        print(f'Overall {policy_mean_accuracy} % of the policy actions are the same as optimal actions')
 
     # Create results df to analyze accuracy by pareto-set size
     results_dict = {"Pareto Set Size": pareto_sizes, "Includes optimal": pareto_set_accuracy}

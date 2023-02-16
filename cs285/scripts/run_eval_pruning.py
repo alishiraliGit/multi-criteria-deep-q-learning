@@ -175,10 +175,10 @@ def main():
         opt_agent = LoadedDQNAgent(file_path=opt_file_path)
         opt_actor = opt_agent.actor
     
-    #load phase 2 policy based on provided inputs
+    # load phase 2 policy based on provided inputs
     policy = None
     if pruning_critic is not None:
-        policy = PrunedArgMaxPolicy(critic=pruning_critic,action_pruner=pruner)
+        policy = PrunedArgMaxPolicy(critic=pruning_critic, action_pruner=pruner)
 
     ##################################
     # Run Q-learning

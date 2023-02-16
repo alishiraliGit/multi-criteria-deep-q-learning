@@ -6,8 +6,21 @@ import glob
 from plot_baseline_learning_curves import get_section_tags, get_section_results
 
 
+def max_so_far(x):
+    if not isinstance(x, np.ndarray):
+        x = np.array(x)
+
+    y = x.copy()
+    for idx in range(1, len(x)):
+        y[idx] = np.maximum(y[idx], y[idx - 1])
+
+    return y
+
+
 if __name__ == '__main__':
-    do_save = False
+    do_save = True
+
+    get_max_so_far = False
 
     load_path_ = os.path.join('..', '..', 'data')
 
@@ -20,14 +33,17 @@ if __name__ == '__main__':
     tuf1 = 1000
     tuf2 = 8000
     prefixes_ = ['expvar1clr1-5lr2-4_*_offline_pruned_cmdqn_alpha%g_cql%g_r%g_tuf1%d_tuf2%d_sparse' % (alpha, cql_alpha, r, tuf1, tuf2) for alpha in [5, 10, 20]] \
-        + ['expvar1clr-4_*_offline_baseline_cql%g_r%g_tuf%d_MIMIC' % (cql_alpha, 0, tuf2)]
+       + ['expvar1clr-4_*_offline_baseline_cql%g_r%g_tuf%d_MIMIC' % (cql_alpha, 0, tuf2)]
+    # prefixes_ = ['expll_*_pruned_cmdqn_alpha%g_sparse' % alpha for alpha in [5, 10]] + ['expll_*_baseline_sparse']
 
     n_color_ = len(prefixes_) - 1
     color_ = lambda cnt: ((cnt % n_color_)/(n_color_ - 1), 0, 1 - (cnt % n_color_)/(n_color_ - 1)) if cnt_ < n_color_ else 'k'
     line_type_ = lambda cnt: '-' if cnt_ < n_color_ else '--'
 
-    legends_ = [r'$\alpha$ = ' + s[s.find('alpha') + 5: s.find('cql') - 1] + r', $r$ = ' + s[s.rfind('_r') + 2: s.find('tuf') - 1] for s in prefixes_[:-1]]
-    legends_.append('best baseline')
+    legends_ = [r'Pruned CQL($\alpha$=0.001, $\beta$=' + s[s.find('alpha') + 5: s.find('cql') - 1] + ')' for s in prefixes_[:-1]]
+    legends_.append('Best CQL baseline')
+    # legends_ = [r'Pruned CQL ($\beta$ = ' + s[s.find('alpha') + 5: s.find('sparse') - 1] + ')' for s in prefixes_[:-1]]
+    # legends_.append('baseline')
 
     folder_paths_ = []
     for prefix_ in prefixes_:
@@ -43,12 +59,17 @@ if __name__ == '__main__':
     # Extract data
     x_tag_ = 'Train_itr'
     y_tag_ = 'Rho'
+    # x_tag_ = 'Train_EnvstepsSoFar'
+    # y_tag_ = 'Train_AverageReturn'
 
     xs_ = [get_section_results(f[0], [x_tag_])[x_tag_] for f in file_paths_]
     y_means_ = []
     y_cis_ = []
     for file_path_ in file_paths_:
-        y_raw_ = [get_section_results(f, [y_tag_])[y_tag_] for f in file_path_]
+        if get_max_so_far:
+            y_raw_ = [max_so_far(get_section_results(f, [y_tag_])[y_tag_]) for f in file_path_]
+        else:
+            y_raw_ = [get_section_results(f, [y_tag_])[y_tag_] for f in file_path_]
         min_len_ = np.min([len(y) for y in y_raw_])
         y_ = np.array([y[:min_len_] for y in y_raw_])
         y_means_.append(np.mean(y_, axis=0))
@@ -73,14 +94,17 @@ if __name__ == '__main__':
 
     plt.xlabel('Iterations', fontsize=12)
     plt.ylabel(r'$\rho_{Mortality}$', fontsize=12)
-    plt.title('Offline MDQN')
+    # plt.ylabel(r'Best Return', fontsize=12)
+    # plt.title('Offline MDQN')
+    # plt.title('Standard Q-Learning vs. Pruned QL (Sparse Lunar Lander)', fontsize=11)
 
     plt.xlim(left=10000)
-    plt.ylim(bottom=0.16)
+    plt.ylim(bottom=0.15)
 
     plt.tight_layout()
 
     if do_save:
         plt.savefig(os.path.join(save_path_, 'expvar1clr1-5lr2-4_mdqn_phase_2(r%g_tuf1%d_tuf2%d).pdf' % (r, tuf1, tuf2)))
+        # plt.savefig(os.path.join(save_path_, 'expll_mdqn_phase_2_LunarLander.pdf'))
 
     plt.show()

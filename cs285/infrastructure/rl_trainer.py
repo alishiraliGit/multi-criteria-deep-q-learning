@@ -46,7 +46,7 @@ class RLTrainer(object):
         self.log_video = None
         self.log_metrics = None
         self.log_params = None
-        self.best_performance = 0
+        self.best_performance = -np.inf
 
         #############
         # ENV
@@ -267,13 +267,13 @@ class RLTrainer(object):
             all_logs = self.train_agent()
 
             # Log/save
-            performance = 0
+            performance = -np.inf
             if self.log_video or self.log_metrics:
                 # Perform logging
                 print('\nBeginning logging procedure (%s)...' % self.params['logdir'])
                 if isinstance(self.agent, DQNAgent):
                     if not self.offline:
-                        self.perform_dqn_logging(all_logs)
+                        performance = self.perform_dqn_logging(all_logs)
                     else:
                         if self.agent.mdqn or self.agent.emdqn:
                             performance = self.perform_mdqn_offline_logging(itr, paths, test_paths, all_logs)
@@ -288,6 +288,7 @@ class RLTrainer(object):
                             or (self.params['save_best'] and (performance >= self.best_performance)):
                         save_path = '{}/dqn_agent.pt'.format(self.params['logdir'])
                         self.agent.critic.save(save_path)
+                        print('agent saved!')
 
                         if performance >= self.best_performance:
                             self.best_performance = performance
@@ -373,7 +374,10 @@ class RLTrainer(object):
     def perform_dqn_logging(self, all_logs):
         last_log = all_logs[-1]
 
-        episode_rewards = self.env.get_episode_rewards()
+        if self.params['mdqn'] or self.params['emdqn']:
+            episode_rewards = self.env.episode_final_rewards
+        else:
+            episode_rewards = self.env.get_episode_rewards()
 
         if len(episode_rewards) > 0:
             self.mean_episode_reward = np.mean(episode_rewards[-100:])
@@ -406,6 +410,8 @@ class RLTrainer(object):
         print('Done logging...\n\n')
 
         self.logger.flush()
+
+        return logs.get('Train_AverageReturn', -np.inf)
 
     def perform_logging(self, itr, paths, eval_policy, train_video_paths, all_logs):
 
