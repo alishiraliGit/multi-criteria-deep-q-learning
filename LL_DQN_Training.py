@@ -7,7 +7,7 @@ Chance level [0.86375948, 0.86375948, 0.7464114 , 0.86375948, 0.51897609, 0.5799
 
 #Phase 1 - DQN - baseline
 
-python cs285/scripts/run_dqn.py \
+python rlcodebase/scripts/run_dqn.py \
 --exp_name p4_baseline \
 --env_name LunarLander-Customizable \
 --env_rew_weights 0 0 0 0 1 \
@@ -15,7 +15,7 @@ python cs285/scripts/run_dqn.py \
 
 #Phase 1 - DQN
 
-python cs285/scripts/run_dqn.py \
+python rlcodebase/scripts/run_dqn.py \
 --exp_name p4 \
 --env_name LunarLander-Customizable \
 --env_rew_weights 1 1 1 1 0 \
@@ -23,7 +23,7 @@ python cs285/scripts/run_dqn.py \
 
 #Phase 2 - DQN
 
-python cs285/scripts/run_dqn.py \
+python rlcodebase/scripts/run_dqn.py \
 --exp_name p4_pruned_idqn_sparse \
 --env_name LunarLander-Customizable \
 --env_rew_weights 0 0 0 0 1 \
@@ -39,7 +39,7 @@ import shlex, subprocess
 
 
 command_stem = [
-"python cs285/scripts/run_dqn.py --exp_name p4_pruned_idqn_sparse_{eps_print} --env_name LunarLander-Customizable --env_rew_weights 0 0 0 0 1 --prune_with_icql --pruning_file_prefix p4_LunarLander-Customizable --pruning_eps {eps} --double_q --seed 1 --no_weights_in_path" 
+"python rlcodebase/scripts/run_dqn.py --exp_name p4_pruned_idqn_sparse_{eps_print} --env_name LunarLander-Customizable --env_rew_weights 0 0 0 0 1 --prune_with_icql --pruning_file_prefix p4_LunarLander-Customizable --pruning_eps {eps} --double_q --seed 1 --no_weights_in_path"
 ]
 
 eps_data = [0, 0.1, 0.2, 0.5]
@@ -63,4 +63,4 @@ if __name__ == "__main__":
         process = subprocess.Popen(args)
         process.wait()
 
-#python cs285/scripts/post_process_training_logs.py --prefix p4_pruned --y_tag Train_AverageReturn --x_tag Train_EnvstepsSoFar --baseline_model p4_baseline
+#python rlcodebase/scripts/post_process_training_logs.py --prefix p4_pruned --y_tag Train_AverageReturn --x_tag Train_EnvstepsSoFar --baseline_model p4_baseline

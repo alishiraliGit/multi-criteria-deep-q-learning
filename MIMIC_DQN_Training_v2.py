@@ -2,7 +2,7 @@ import shlex, subprocess
 
 """
 command_stem = [
-"python cs285/scripts/run_dqn.py --exp_name MIMICvdl_{r} --env_name MIMIC --env_rew_weights {w} --double_q --seed 1 --scalar_log_freq 2000 --params_log_freq 2000 --offline --no_weights_in_path --buffer_path './Replay_buffer_extraction/Encoded_paths3_all_rewards.pkl'"
+"python rlcodebase/scripts/run_dqn.py --exp_name MIMICvdl_{r} --env_name MIMIC --env_rew_weights {w} --double_q --seed 1 --scalar_log_freq 2000 --params_log_freq 2000 --offline --no_weights_in_path --buffer_path './Replay_buffer_extraction/Encoded_paths3_all_rewards.pkl'"
 ]
 
 
@@ -47,7 +47,7 @@ if __name__ == "__main__":
 
 """
 command_stem = [
-"python cs285/scripts/run_dqn.py --exp_name pDQNvdl_{eps} --env_name MIMIC --pruning_file_prefix MIMICvdl_ --pruning_eps {e} --env_rew_weights 1 0 0 0 0 0 0 0 0 0 0 --double_q --seed 1 --scalar_log_freq 2000 --params_log_freq 2000 --offline --no_weights_in_path --buffer_path './Replay_buffer_extraction/Encoded_paths3_all_rewards.pkl'"
+"python rlcodebase/scripts/run_dqn.py --exp_name pDQNvdl_{eps} --env_name MIMIC --pruning_file_prefix MIMICvdl_ --pruning_eps {e} --env_rew_weights 1 0 0 0 0 0 0 0 0 0 0 --double_q --seed 1 --scalar_log_freq 2000 --params_log_freq 2000 --offline --no_weights_in_path --buffer_path './Replay_buffer_extraction/Encoded_paths3_all_rewards.pkl'"
 ]
 
 eps_list = [0.2,0.3]

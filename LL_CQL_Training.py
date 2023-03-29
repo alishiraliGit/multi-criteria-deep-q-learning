@@ -7,7 +7,7 @@ Chance level [0.85063531, 0.54697994, 0.37013582, 0.27969361, 0.72790818]
 
 #Phase 1 - CQL
 
-python cs285/scripts/run_dqn.py \
+python rlcodebase/scripts/run_dqn.py \
 --exp_name p5 \
 --env_name LunarLander-Customizable \
 --env_rew_weights 1 1 1 1 0 \
@@ -16,7 +16,7 @@ python cs285/scripts/run_dqn.py \
 
 #Phase 2 - DQN
 
-python cs285/scripts/run_dqn.py \
+python rlcodebase/scripts/run_dqn.py \
 --exp_name p4_pruned_idqn_sparse \
 --env_name LunarLander-Customizable \
 --env_rew_weights 0 0 0 0 1 \
@@ -28,7 +28,7 @@ python cs285/scripts/run_dqn.py \
 
 #Phase 2 - CQL
 
-python cs285/scripts/run_dqn.py \
+python rlcodebase/scripts/run_dqn.py \
 --exp_name p5_pruned_icql_sparse \
 --env_name LunarLander-Customizable \
 --env_rew_weights 0 0 0 0 1 \
@@ -45,7 +45,7 @@ import shlex, subprocess
 
 """
 command_stem = [
-"python cs285/scripts/run_dqn.py --exp_name p5 --env_name LunarLander-Customizable --env_rew_weights 1 1 1 1 0 --cql --double_q --seed {s}" 
+"python rlcodebase/scripts/run_dqn.py --exp_name p5 --env_name LunarLander-Customizable --env_rew_weights 1 1 1 1 0 --cql --double_q --seed {s}" 
 ]
 
 seeds = list(range(16))
@@ -72,7 +72,7 @@ if __name__ == "__main__":
 
 
 command_stem = [
-"python cs285/scripts/run_dqn.py --exp_name p51_pruned_icql_sparse_{eps_print} --env_name LunarLander-Customizable --env_rew_weights 0 0 0 0 1 --prune_with_icql --cql --pruning_file_prefix p5_LunarLander-Customizable --pruning_eps {eps} --double_q --seed 1 --no_weights_in_path" 
+"python rlcodebase/scripts/run_dqn.py --exp_name p51_pruned_icql_sparse_{eps_print} --env_name LunarLander-Customizable --env_rew_weights 0 0 0 0 1 --prune_with_icql --cql --pruning_file_prefix p5_LunarLander-Customizable --pruning_eps {eps} --double_q --seed 1 --no_weights_in_path" 
 ]
 
 eps_list = [0.05,0.1,0.2]
@@ -99,7 +99,7 @@ if __name__ == "__main__":
 
 """
 command_stem = [
-"python cs285/scripts/run_eval_pruning.py --exp_name p5_icql_eval_{eps_print} --env_name LunarLander-Customizable --env_rew_weights 0 0 0 0 1 --opt_file_prefix p4_opt --prune_with_icql --pruning_file_prefix p5_L --pruning_eps {eps} --seed 1" 
+"python rlcodebase/scripts/run_eval_pruning.py --exp_name p5_icql_eval_{eps_print} --env_name LunarLander-Customizable --env_rew_weights 0 0 0 0 1 --opt_file_prefix p4_opt --prune_with_icql --pruning_file_prefix p5_L --pruning_eps {eps} --seed 1"
 ]
 
 eps_list = [0, 0.05,0.1,0.2, 0.3]
@@ -123,8 +123,8 @@ if __name__ == "__main__":
         process = subprocess.Popen(args)
         process.wait()
 
-#python cs285/scripts/post_process_training_logs.py --prefix p5_pruned --y_tag Train_AverageReturn --x_tag Train_EnvstepsSoFar --baseline_model p5_baseline
+#python rlcodebase/scripts/post_process_training_logs.py --prefix p5_pruned --y_tag Train_AverageReturn --x_tag Train_EnvstepsSoFar --baseline_model p5_baseline
 
-#python cs285/scripts/post_process_training_logs.py --prefix p5_pruned_icql_sparse_30 --y_tag Train_AverageReturn --x_tag Train_EnvstepsSoFar --baseline_model p5_baseline
+#python rlcodebase/scripts/post_process_training_logs.py --prefix p5_pruned_icql_sparse_30 --y_tag Train_AverageReturn --x_tag Train_EnvstepsSoFar --baseline_model p5_baseline
 
-#python cs285/scripts/run_eval_pruning.py --exp_name p5_icql_eval --env_name LunarLander-Customizable --env_rew_weights 0 0 0 0 1 --opt_file_prefix p4_opt --prune_with_icql #TODO --pruning_file_prefix p5_pruned --pruning_eps w --seed 1
+#python rlcodebase/scripts/run_eval_pruning.py --exp_name p5_icql_eval --env_name LunarLander-Customizable --env_rew_weights 0 0 0 0 1 --opt_file_prefix p4_opt --prune_with_icql #TODO --pruning_file_prefix p5_pruned --pruning_eps w --seed 1
