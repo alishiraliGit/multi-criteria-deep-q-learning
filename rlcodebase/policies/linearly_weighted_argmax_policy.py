@@ -8,9 +8,15 @@ from rlcodebase.infrastructure.utils import pytorch_utils as ptu
 
 def draw_w(size, b) -> np.ndarray:
     if isinstance(b, int) or isinstance(b, float) or len(b) == 1:
-        return np.random.random(size) * b + 1
+        w = np.random.random(size) * b + 1
     else:
-        return 0.5*np.array(b)[np.newaxis, :] + np.random.random(size) * np.array(b)[np.newaxis, :]
+        raise NotImplementedError
+        # return 0.5*np.array(b)[np.newaxis, :] + np.random.random(size) * np.array(b)[np.newaxis, :]
+
+    # Normalize across last dimension
+    w = w/np.sum(w, axis=-1, keepdims=True)
+
+    return w
 
 
 class LinearlyWeightedArgMaxPolicy(BasePolicy):

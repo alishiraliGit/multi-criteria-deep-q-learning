@@ -5,3 +5,5 @@ virtualenv
 *.cpython-38.pyc
 *.fig
 *.data
+old_figs
+old_data
