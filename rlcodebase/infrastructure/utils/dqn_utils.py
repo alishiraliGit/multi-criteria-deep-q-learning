@@ -146,5 +146,6 @@ def mimic_optimizer():
         optim_kwargs=dict(
             lr=1,
         ),
+        # TODO: Hard-coded
         learning_rate_schedule=ConstantSchedule(1e-4).value,  # 1e-4
     )

@@ -30,7 +30,7 @@ if __name__ == '__main__':
     # Find relevant files
     lr1 = 1e-5
     tuf1 = 1000
-    r1 = 1
+    r1 = 10
 
     lr2 = 1e-4
     tuf2 = 8000
@@ -38,9 +38,9 @@ if __name__ == '__main__':
     cql_alpha = 0.001
 
     prefixes_ = \
-        ['v4_var1c_*_offline_pruned_cmdqn_lr[1]%.0e_tuf[1]%g_r[1]%g_lr[2]%.0e_tuf[2]%g_cql%g_alpha%g_sparse_MIMIC'
-         % (lr1, tuf1, r1, lr2, tuf2, cql_alpha, alpha) for alpha in [5, 10, 20, 40]] \
-        + ['v4_var1c_*_offline_baseline_lr%.0e_tuf%g_cql%g_r%g_MIMIC' % (1e-4, 8000, 0.005, 0)]
+        ['v6_var1c_*_offline_pruned_cmdqn_lr[1]%.0e_tuf[1]%g_r[1]%g_lr[2]%.0e_tuf[2]%g_cql%g_alpha%g_sparse_MIMIC'
+         % (lr1, tuf1, r1, lr2, tuf2, cql_alpha, alpha) for alpha in [20, 40, 80]] + \
+        ['v6_var1c_*_offline_baseline_lr%.0e_tuf%g_cql%g_r%g_MIMIC' % (1e-4, 8000, 0.005, 0)]
 
     prefixes_ = [escape_bracket_globe(prefix) for prefix in prefixes_]
 

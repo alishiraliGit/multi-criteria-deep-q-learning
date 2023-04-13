@@ -146,23 +146,23 @@ if __name__ == '__main__':
     metric_1 = 'Accuracy'
     # metric_1 = 'Recall'
 
-    metric_2 = 'Diff_Survival_Quantiles'
+    # metric_2 = 'Diff_Survival_Quantiles'
     # metric_2 = 'WIS'
-    # metric_2 = 'FQE'
+    metric_2 = 'FQE'
     # metric_2 = 'Num_of_Available_Actions'
 
     x_label = '% of actions similar to physicians'
-    y_label = r'$\Delta MR$'
-    # y_label = 'Value (WIS)'
+    # y_label = r'$\Delta MR$'
+    y_label = 'Value (WIS)'
     # y_label = 'Value (FQE)'
 
     # ----- To be evaluated models -----
     # Eval fixed params
-    v = 4
+    v = 6
 
     lr1 = 1e-5
     tuf1 = 1000
-    r1 = 1
+    r1 = 5
 
     lr2 = 1e-4
     tuf2 = 8000
@@ -170,7 +170,7 @@ if __name__ == '__main__':
     cql_alpha = 0.001
 
     # Eval changing param
-    consistency_alphas = [5, 10, 20, 40]  # [5, 10, 20, 40]
+    consistency_alphas = [20, 40, 80]  # [5, 10, 20, 40]
 
     # Eval prefixes
     eval_prefixes = \
@@ -179,7 +179,7 @@ if __name__ == '__main__':
 
     # ----- Baseline models -----
     # Baseline fixed params
-    v_b = 4
+    v_b = 6
 
     lr_b = 1e-4
     tuf_b = 8000
@@ -187,7 +187,7 @@ if __name__ == '__main__':
     r_b = 0
 
     # Baseline changing params
-    cql_alphas_b = [0.001, 0.005, 0.1]  # [0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1]  # [0.001, 0.003, 0.01]
+    cql_alphas_b = [0.001, 0.005, 0.01]  # [0.001, 0.003, 0.01, 0.03, 0.1, 0.3, 1]  # [0.001, 0.003, 0.01]
 
     # Baseline prefixes
     baseline_prefixes = \

@@ -1,22 +1,44 @@
 import numpy as np
 import torch
 from torch.nn.functional import softmax
+from scipy.stats import dirichlet
 
 from rlcodebase.policies.base_policy import BasePolicy
 from rlcodebase.infrastructure.utils import pytorch_utils as ptu
 
 
-def draw_w(size, b) -> np.ndarray:
+def draw_w_old(size, b) -> np.ndarray:
     if isinstance(b, int) or isinstance(b, float) or len(b) == 1:
         w = np.random.random(size) * b + 1
     else:
-        raise NotImplementedError
-        # return 0.5*np.array(b)[np.newaxis, :] + np.random.random(size) * np.array(b)[np.newaxis, :]
+        w = np.random.random(size) * np.array(b)[np.newaxis, :] + 1
 
     # Normalize across last dimension
-    w = w/np.sum(w, axis=-1, keepdims=True)
+    w = w/np.sqrt(np.sum(w**2, axis=-1, keepdims=True))
 
     return w
+
+
+def draw_w(size, b) -> np.ndarray:
+    n, r = size
+
+    if isinstance(b, int) or isinstance(b, float):
+        b = np.array([b]*r)
+
+    assert len(b) == r
+
+    w = np.random.dirichlet(alpha=b, size=(n,))
+
+    return w
+
+
+def pdf_w(w: np.ndarray, b) -> np.ndarray:
+    n, r = w.shape
+
+    if isinstance(b, int) or isinstance(b, float):
+        b = np.array([b]*r)
+
+    return np.ndarray([dirichlet.pdf(w_i, alpha=b)for w_i in w])
 
 
 class LinearlyWeightedArgMaxPolicy(BasePolicy):

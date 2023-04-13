@@ -3,6 +3,7 @@ import torch
 import torch.optim as optim
 from torch.nn import utils
 from torch import nn
+import torch.nn.functional as f
 
 from rlcodebase.infrastructure.utils import pytorch_utils as ptu
 from rlcodebase.infrastructure.utils.dqn_utils import \
@@ -12,6 +13,74 @@ import rlcodebase.policies.argmax_policy as argmax_policy
 from rlcodebase.policies.linearly_weighted_argmax_policy import draw_w
 import rlcodebase.policies.linearly_weighted_argmax_policy as lw_argmax_policy
 from rlcodebase.pruners.base_pruner import BasePruner
+
+
+def rej_sample(q_vals_nar, ac_n, alpha, b, k):
+    n, a, r = q_vals_nar.shape
+
+    # 0-estimate of max pi^w(a)
+    q_vals_nr = gather_by_actions(q_vals_nar, ac_n)
+    w0_nr = f.normalize(q_vals_nr, p=2, dim=1)
+
+    prod0_na = (q_vals_nar * w0_nr.unsqueeze(1)).sum(dim=2)
+
+    logprob0_na = f.log_softmax(prod0_na * alpha, dim=1)
+    logprob0_n = gather_by_actions(logprob0_na, ac_n)
+
+    # Draw ws
+    w_nr = ptu.from_numpy(draw_w((n, r), b))
+
+    # TODO: HArd-coded
+    if k > 1000:
+        return w_nr
+
+    # Find the inner-products
+    prod_na = (q_vals_nar * w_nr.unsqueeze(1)).sum(dim=2)
+
+    logprob_na = f.log_softmax(prod_na * alpha, dim=1)
+    logprob_n = gather_by_actions(logprob_na, ac_n)
+
+    # Reject?
+    u_n = torch.rand((n,))
+
+    keep_n = torch.log(u_n) <= logprob_n - logprob0_n
+
+    if torch.all(keep_n):
+        return w_nr
+
+    # Redraw
+    try:
+        w_nr[~keep_n] = rej_sample(q_vals_nar[~keep_n], ac_n[~keep_n], alpha, b, k + 1)
+    except RecursionError:
+        pass
+
+    return w_nr
+
+
+def naive_sample(q_vals_nar, ac_n, alpha, b, tot):
+    n, a, r = q_vals_nar.shape
+
+    w_ntr = torch.zeros((n, tot, r))
+    logprob_nt = torch.zeros((n, tot))
+    for t in range(tot):
+        # Draw ws
+        w_nr = ptu.from_numpy(draw_w((n, r), b))
+        w_ntr[:, t, :] = w_nr
+
+        # Find the inner-products
+        prod_na = (q_vals_nar * w_nr.unsqueeze(1)).sum(dim=2)
+
+        logprob_na = f.log_softmax(prod_na * alpha, dim=1)
+        logprob_n = gather_by_actions(logprob_na, ac_n)
+        logprob_nt[:, t] = logprob_n
+
+    dist_n = torch.distributions.categorical.Categorical(logits=logprob_nt)
+
+    t_n = dist_n.sample()
+
+    w_nr = gather_by_actions(w_ntr, t_n)
+
+    return w_nr
 
 
 class DQNCritic(BaseCritic):
@@ -301,34 +370,8 @@ class MDQNCritic(DQNCritic):
         # Consistent
         #####################
         elif self.consistent:
-            n, a, r = qa_t_values_nar.shape
-
-            # Draw ws
-            w1_n1r = ptu.from_numpy(draw_w((n, r), self.b)).unsqueeze(1)
-            w2_n1r = ptu.from_numpy(draw_w((n, r), self.b)).unsqueeze(1)
-
-            # Find the inner-products
-            prod_1_na = (qa_t_values_nar * w1_n1r).sum(dim=2)
-            prod_2_na = (qa_t_values_nar * w2_n1r).sum(dim=2)
-
-            prod_1_n = gather_by_actions(prod_1_na, ac_n)
-            prod_2_n = gather_by_actions(prod_2_na, ac_n)
-
-            # Find the softmax probs
-            prob_1_n = torch.exp(self.alpha * prod_1_n) / torch.exp(self.alpha * prod_1_na).sum(dim=1)
-            prob_2_n = torch.exp(self.alpha * prod_2_n) / torch.exp(self.alpha * prod_2_na).sum(dim=1)
-
-            # Find likelihood ratio
-            likelihood_n = prob_2_n / prob_1_n
-
-            # Select the better w
-            rnd_n = torch.rand(likelihood_n.shape)
-
-            choice_n = (rnd_n < likelihood_n) * 1
-
-            ws_n2r = torch.stack([w1_n1r.squeeze(1), w2_n1r.squeeze(1)], dim=1)
-
-            w_nr = gather_by_actions(ws_n2r, choice_n)
+            # TODO: Hard-coded
+            w_nr = naive_sample(qa_t_values_nar, ac_n, self.alpha, self.b, 100)
 
             # Get the best actions for the selected w
             if self.double_q:
@@ -430,6 +473,7 @@ class ExtendedMDQNCritic(DQNCritic):
         #####################
         # Consistent
         #####################
+        # TODO
         if self.consistent:
             # Draw ws
             w1_n1r1 = ptu.from_numpy(draw_w((n, r), self.b)).unsqueeze(1).unsqueeze(3)

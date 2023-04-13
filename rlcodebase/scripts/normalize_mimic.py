@@ -1,14 +1,19 @@
+import sys
 import os
 import pickle
 
 import numpy as np
 from tqdm import tqdm
 
+sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..'))
+
+from rlcodebase.infrastructure.utils.rl_utils import discounted_cumsum
+
 if __name__ == '__main__':
     do_save = True
 
-    file_path = os.path.join('..', '..', 'Replay_buffer_extraction')
-    file_name = 'Encoded_paths13_all_rewards'
+    file_path = os.path.join('Replay_buffer_extraction')
+    file_name = 'Paths_all_rewards_best'
 
     sparse_reward_tag = 'sparse_90d_rew'
     gamma = 1
@@ -24,9 +29,9 @@ if __name__ == '__main__':
         for key, val in path.items():
             if key.startswith('Reward') or (key == sparse_reward_tag):
                 if key in concat_rews:
-                    concat_rews[key] = np.concatenate((concat_rews[key], utils.discounted_cumsum(val, gamma)))
+                    concat_rews[key] = np.concatenate((concat_rews[key], discounted_cumsum(val, gamma)))
                 else:
-                    concat_rews[key] = utils.discounted_cumsum(val, gamma)
+                    concat_rews[key] = discounted_cumsum(val, gamma)
 
     # Calc mean and std
     rew_mean = {}
@@ -54,5 +59,5 @@ if __name__ == '__main__':
 
     # Save results
     if do_save:
-        with open(os.path.join(file_path, file_name + '_test.pkl'), 'wb') as f:
+        with open(os.path.join(file_path, file_name + '_var1.pkl'), 'wb') as f:
             pickle.dump(normalized_paths, f)

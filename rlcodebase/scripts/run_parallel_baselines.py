@@ -9,7 +9,7 @@ if __name__ == '__main__':
     lr = 1e-4
     tuf = 8000
 
-    cql_alpha = 0
+    cql_alpha = 0.01
 
     r = 0
     weights = [1.] + [r] * 4
@@ -22,7 +22,7 @@ if __name__ == '__main__':
     for idx in range(n):
         command = \
             'python rlcodebase/scripts/run_dqn.py' + '\n' + \
-            '--exp_name v4_var1c_%d_offline_baseline_lr%.0e_tuf%g_cql%g_r%g' % (seed[idx], lr, tuf, cql_alpha, r) + '\n' + \
+            '--exp_name v6_var1c_%d_offline_baseline_lr%.0e_tuf%g_cql%g_r%g' % (seed[idx], lr, tuf, cql_alpha, r) + '\n' + \
             '--env_name MIMIC-Continuous' + '\n' + \
             '--env_rew_weights %g %g %g %g %g' % tuple(weights) + '\n' + \
             '--offline --buffer_path "Replay_buffer_extraction/Encoded_paths13_all_rewards_var1.pkl"' + '\n' + \
