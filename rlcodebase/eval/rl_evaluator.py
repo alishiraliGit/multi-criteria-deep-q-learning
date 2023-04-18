@@ -15,6 +15,7 @@ from rlcodebase.pruners.base_pruner import BasePruner
 from rlcodebase.policies.base_policy import BasePolicy
 from rlcodebase.critics.dqn_critic import DQNCritic
 
+from tqdm import tqdm
 
 class RLEvaluator(object):
 
@@ -56,13 +57,17 @@ class RLEvaluator(object):
                             eval_policy: Union[BasePolicy, None],
                             eval_critic: Union[DQNCritic, None],
                             eval_pruner: Union[BasePruner, None],
-                            eval_metrics: List[metrics.EvalMetricBase]):
+                            eval_metrics: List[metrics.EvalMetricBase],
+                            ignore_metrics: bool = False,
+                            get_traj_structure: bool = False):
         # We run the loop only once in the MIMIC setting since we do not sample trajectories
         if self.offline:
             n_iter = 1
 
         all_observations = []
         all_available_actions = []
+        all_available_actions_t = []
+        all_action_flags = []
         all_actions = []
         all_rewards = []
         all_terminals = []
@@ -83,49 +88,112 @@ class RLEvaluator(object):
                 )
             else:
                 test_paths = self.test_paths
+            
+            if not get_traj_structure:
 
-            observations, opt_actions, _, terminals, rewards, _ = rl_utils.convert_listofrollouts(test_paths)
+                observations, opt_actions, _, terminals, rewards, _ = rl_utils.convert_listofrollouts(test_paths)
 
-            # Get available actions
-            if eval_pruner is not None:
-                available_actions = eval_pruner.get_list_of_available_actions(observations)
+                # Get available actions
+                if eval_pruner is not None:
+                    available_actions = eval_pruner.get_list_of_available_actions(observations)
+
+                    #Flag if physician action is in pruned action set 
+                    flags = [1 if opt_actions[i] in available_actions[i] else 0 for i in range(len(opt_actions))]
+                    
+                else:
+                    available_actions = [None]
+                
+                
+
+                # Get policy actions
+                actions = eval_policy.get_actions(observations)
+
+                # Get the Q-values
+                if eval_critic is not None:
+                    qa_values_na = eval_critic.qa_values(observations)
+
+                    q_values = ptu.to_numpy(gather_by_actions(
+                        ptu.from_numpy(qa_values_na),
+                        ptu.from_numpy(opt_actions).to(torch.long)
+                    ))
+                else:
+                    q_values = None
+
+                # Get reward-to-go
+                rtgs = []
+                for path in test_paths:
+                    re_n = path['reward']
+
+                    rtg_n = rl_utils.discounted_cumsum(re_n, self.params['gamma'])
+
+                    rtgs.append(rtg_n)
+                rtgs = np.concatenate(rtgs, axis=0)
+
+                # Append
+                all_observations.append(observations)
+                all_available_actions.extend(available_actions)
+                all_available_actions_t.append(available_actions)
+                all_action_flags.append(flags)
+                all_actions.append(actions)
+                all_rewards.append(rewards)
+                all_terminals.append(terminals)
+                all_rtgs.append(rtgs)
+                all_q_values.append(q_values)
+                all_opt_actions.append(opt_actions.astype(int))
+            
             else:
-                available_actions = [None]
+                for path in tqdm(test_paths):
 
-            # Get policy actions
-            actions = eval_policy.get_actions(observations)
+                    #get pruned action sets
+                    if eval_pruner is not None:
+                        available_actions = eval_pruner.get_list_of_available_actions(path['observation'])
 
-            # Get the Q-values
-            if eval_critic is not None:
-                qa_values_na = eval_critic.qa_values(observations)
+                        #Flag if physician action is in pruned action set 
+                        flags = [1 if path['action'][i] in available_actions[i] else 0 for i in range(len(path['action']))]
+                        
+                    else:
+                        available_actions = [None]
+                    
+                    #get policy actions
+                    actions = eval_policy.get_actions(path['observation'])
 
-                q_values = ptu.to_numpy(gather_by_actions(
-                    ptu.from_numpy(qa_values_na),
-                    ptu.from_numpy(opt_actions).to(torch.long)
-                ))
-            else:
-                q_values = None
+                    # Get the Q-values
+                    if eval_critic is not None:
+                        qa_values_na = eval_critic.qa_values(path['observation'])
 
-            # Get reward-to-go
-            rtgs = []
-            for path in test_paths:
-                re_n = path['reward']
+                        q_values = ptu.to_numpy(gather_by_actions(
+                            ptu.from_numpy(qa_values_na),
+                            ptu.from_numpy(path['action']).to(torch.long)
+                        ))
 
-                rtg_n = rl_utils.discounted_cumsum(re_n, self.params['gamma'])
+                        q_values = q_values.tolist()
+                    else:
+                        q_values = None
+                    
+                    # Get reward-to-go
+                    re_n = path['reward']
+                    rtg_n = rl_utils.discounted_cumsum(re_n, self.params['gamma'])
 
-                rtgs.append(rtg_n)
-            rtgs = np.concatenate(rtgs, axis=0)
+                    # Append
+                    all_observations.append(path['observation'])
+                    all_available_actions.extend(available_actions)
+                    all_available_actions_t.append(available_actions)
+                    all_action_flags.append(flags)
+                    all_actions.append(actions)
+                    all_rewards.append(path['reward'])
+                    all_terminals.append(path['terminal'])
+                    all_rtgs.append(rtg_n)
+                    all_q_values.append(q_values)
+                    all_opt_actions.append(path['action'])
 
-            # Append
-            all_observations.append(observations)
-            all_available_actions.extend(available_actions)
-            all_actions.append(actions)
-            all_rewards.append(rewards)
-            all_terminals.append(terminals)
-            all_rtgs.append(rtgs)
-            all_q_values.append(q_values)
-            all_opt_actions.append(opt_actions.astype(int))
-
+        #Leave some data non-concatenated for post-processing
+        all_opt_actions_p =  all_opt_actions
+        all_actions_p = all_actions
+        all_available_actions_p = all_available_actions
+        all_action_flags_p = all_action_flags
+        all_rtgs_p = all_rtgs
+        all_q_values_p = all_q_values
+        
         # Concat
         all_observations = np.concatenate(all_observations, axis=0)
         all_actions = np.concatenate(all_actions, axis=0)
@@ -135,20 +203,27 @@ class RLEvaluator(object):
         all_q_values = np.concatenate(all_q_values, axis=0)
         all_opt_actions = np.concatenate(all_opt_actions, axis=0)
 
+         
+
         # Calc. metrics
         metric_values = {}
-        for metric in eval_metrics:
-            if metric.requires_fitting:
-                if not self.offline:
-                    raise NotImplementedError
-                metric.fit(self.train_paths, self.test_paths, self.params, eval_policy)
+        if not ignore_metrics:
+            for metric in eval_metrics:
+                if metric.requires_fitting:
+                    if not self.offline:
+                        raise NotImplementedError
+                    metric.fit(self.train_paths, self.test_paths, self.params, eval_policy)
 
-            metric_values[metric.name] = metric.value(all_observations, all_available_actions, all_actions, all_rewards,
-                                                      all_terminals, all_rtgs, all_q_values, all_opt_actions)
+                metric_values[metric.name] = metric.value(all_observations, all_available_actions, all_actions, all_rewards,
+                                                        all_terminals, all_rtgs, all_q_values, all_opt_actions)
 
         actions_dict = {
-            'opt_actions': all_opt_actions,
-            'policy_actions': all_actions,
+            'opt_actions': all_opt_actions_p,
+            'policy_actions': all_actions_p,
+            'pruned_actions':all_available_actions_t,
+            'action_flags': all_action_flags_p,
+            'mortality_rtg': all_rtgs_p,
+            'q_vals' : all_q_values_p,
         }
 
         print(metric_values)

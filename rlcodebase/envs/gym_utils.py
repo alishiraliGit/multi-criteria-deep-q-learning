@@ -1,5 +1,6 @@
 import gym
 from gym import register
+from gym import wrappers
 from gym.envs import registry
 
 
@@ -29,6 +30,7 @@ def register_custom_envs():
     register_env('LunarLander-Customizable', 'lunar_lander_customizable_rew_weights')
     register_env('LunarLander-MultiReward', 'lunar_lander_multi_rew')
     register_env('LunarLander-MultiInterReward', 'lunar_lander_multi_inter_rew')
+    register_env('LunarLander-MultiInterRewardNoise', 'lunar_lander_multi_inter_rew_noise')
 
 
 ###################
@@ -49,6 +51,10 @@ def init_gym_and_update_params(params):
     # Set env reward weights
     if params['env_name'] == 'LunarLander-Customizable' and params['env_rew_weights'] is not None:
         env.set_rew_weights(params['env_rew_weights'])
+    
+    # Set env noise level
+    if params['env_name'] == 'LunarLander-MultiInterRewardNoise' and params['env_noise_level'] is not None:
+        env.set_noise_level(params['env_noise_level'])
 
     # Add wrappers
     if 'env_wrappers' in params:
@@ -91,9 +97,10 @@ class ReturnWrapper(gym.Wrapper):
         return list(self.env.return_queue)
 
 
-def add_wrappers(env, wrappers):
+def add_wrappers(env, wrappers_func):
+    print(type(wrappers))
     env = wrappers.RecordEpisodeStatistics(env, deque_size=1000)
     env = ReturnWrapper(env)
-    env = wrappers(env)
+    env = wrappers_func(env)
 
     return env

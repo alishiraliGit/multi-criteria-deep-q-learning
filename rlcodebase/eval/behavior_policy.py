@@ -16,7 +16,8 @@ from rlcodebase.policies.base_policy import BasePolicy
 
 class BehaviorPolicy(BasePolicy):
     def __init__(self):
-        self.cls = LogisticRegression(multi_class='multinomial', penalty=None, max_iter=1000)
+        #self.cls = LogisticRegression(multi_class='multinomial', penalty=None, max_iter=1000)
+        self.cls = LogisticRegression(multi_class='multinomial', penalty='none', max_iter=1000)
 
     def update(self, ob_no: np.ndarray, ac_n: np.ndarray, **kwargs) -> dict:
         self.cls.fit(ob_no, ac_n)

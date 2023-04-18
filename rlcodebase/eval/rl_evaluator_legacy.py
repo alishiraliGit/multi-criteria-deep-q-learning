@@ -1,3 +1,8 @@
+# v6_var1c_9_offline_pruned_cmdqn_alpha40_sparse_eval_MIMIC-Continuous
+# python rlcodebase/scripts/simplified_post_process_eval_pruning.py --prefix v6_var1c_9_offline_pruned_cmdqn_alpha*_sparse_eval --show
+# python rlcodebase/scripts/simplified_post_process_eval_pruning.py --prefix v6_var1c_*_offline_pruned_cmdqn_alpha20_sparse_eval --show
+
+
 import pickle
 import os
 
@@ -12,6 +17,7 @@ import rlcodebase.envs.mimic_utils
 from rlcodebase.envs.gym_utils import register_custom_envs
 from rlcodebase.pruners.base_pruner import BasePruner
 from rlcodebase.infrastructure.utils import pytorch_utils as ptu
+from rlcodebase.infrastructure.utils import rl_utils
 
 
 class RLEvaluatorLegacy(object):
@@ -97,8 +103,6 @@ class RLEvaluatorLegacy(object):
         all_q_values = []
         all_rtgs = []
 
-        
-
 
         #This are the biomarkers
          #['gender', 'age', 'elixhauser', 're_admission', 'died_in_hosp', 'died_within_48h_of_out_time', 
@@ -169,7 +173,7 @@ class RLEvaluatorLegacy(object):
                 else:
                     reward_tag = 'sparse_90d_rew'
 
-                rtg_n = utils.discounted_cumsum(path[reward_tag],
+                rtg_n = rl_utils.discounted_cumsum(path[reward_tag],
                                                 self.params['gamma']) / 100  # to make this a mortality indicator
                 rtg_n = (rtg_n + 1) / 2
                 all_rtgs.append(rtg_n)

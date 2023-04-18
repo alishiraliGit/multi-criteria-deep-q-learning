@@ -66,6 +66,12 @@ def main():
     parser.add_argument('--offline', action='store_true')
     parser.add_argument('--buffer_path', type=str, default=None)
 
+    # Do we need to compute computationally expensive eval metrics?
+    parser.add_argument('--ignore_metrics', action='store_true')
+
+    # Do I want the output dict to maintain the trajectory structure?
+    parser.add_argument('--maintain_traj', action='store_true')
+
     args = parser.parse_args()
 
     # Convert to dictionary
@@ -78,6 +84,8 @@ def main():
     assert sum([prune_with_idqn, prune_with_mdqn, prune_with_emdqn]) == 1
 
     offline = params['offline']
+
+    ignore_metrics = params['ignore_metrics']
 
     ##################################
     # Set system variables
@@ -175,7 +183,9 @@ def main():
         eval_policy=eval_policy,
         eval_critic=eval_critic,
         eval_pruner=eval_pruner,
-        eval_metrics=default_metrics
+        eval_metrics=default_metrics,
+        ignore_metrics=ignore_metrics,
+        get_traj_structure=params['maintain_traj']
     )
 
 

@@ -83,6 +83,10 @@ class LinearlyWeightedSoftmaxPolicy(BasePolicy):
         if is_numpy:
             qa_values_nar = ptu.from_numpy(qa_values_nar)
             w_nr = ptu.from_numpy(w_nr)
+        
+        # check if cuda is available and if yes bring w_nr on cuda
+        if torch.cuda.is_available():
+            w_nr = w_nr.cuda()
 
         qa_values_na = (qa_values_nar * w_nr.unsqueeze(1)).sum(dim=2)
 
