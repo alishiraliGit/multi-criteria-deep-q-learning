@@ -52,8 +52,8 @@ if __name__ == '__main__':
             for seed in seeds:
                 command = \
                     'python rlcodebase/scripts/run_dqn.py' + '\n' + \
-                    '--exp_name v7LL_%d_cmdqn_noise%g_r%g' \
-                    % (seed, noise, r) + '\n' + \
+                    '--exp_name v7LL_%d_cmdqn_noise%g_alpha%g_r%g' \
+                    % (seed, noise,consistency_alpha, r) + '\n' + \
                     '--env_name LunarLander-MultiInterRewardNoise' + '\n' + \
                     '--consistent_mdqn' + '\n' + \
                     '--w_bound %g %g %g' % tuple(w_bound) + '\n' + \
@@ -75,30 +75,30 @@ if __name__ == '__main__':
     # Pruned DQN Phase 2 Loop
     ####################################
 
-    for consistency_alpha in consistency_alphas:
-        for noise in noise_level:
-            for seed in seeds:
-                command = \
-                    'python rlcodebase/scripts/run_dqn.py' + '\n' + \
-                    '--exp_name v7LL_%d_pruned_cmdqn_noise%g_r%g_sparse' \
-                    % (seed, noise, r) + '\n' + \
-                    '--env_name LunarLander-Customizable' + '\n' + \
-                    '--env_rew_weights 0 0 0 0 1' + '\n' + \
-                    '--prune_with_mdqn' + '\n' + \
-                    '--v7LL_%d_cmdqn_noise%g_r%g' \
-                    % (seed, noise, r) + '\n' + \
-                    '--pruning_n_draw 20' + '\n' + \
-                    '--double_q' + '\n' + \
-                    '--no_weights_in_path' + '\n' +  \
-                    '--save_best' + '\n' + \
-                    '--seed %d' % seed
+    # for consistency_alpha in consistency_alphas:
+    #     for noise in noise_level:
+    #         for seed in seeds:
+    #             command = \
+    #                 'python rlcodebase/scripts/run_dqn.py' + '\n' + \
+    #                 '--exp_name v7LL_%d_pruned_cmdqn_noise%g_r%g_sparse' \
+    #                 % (seed, noise, r) + '\n' + \
+    #                 '--env_name LunarLander-Customizable' + '\n' + \
+    #                 '--env_rew_weights 0 0 0 0 1' + '\n' + \
+    #                 '--prune_with_mdqn' + '\n' + \
+    #                 '--pruning_file_prefix v7LL_%d_cmdqn_noise%g_alpha%g_r%g' \
+    #                 % (seed, noise, consistency_alpha, r) + '\n' + \
+    #                 '--pruning_n_draw 20' + '\n' + \
+    #                 '--double_q' + '\n' + \
+    #                 '--no_weights_in_path' + '\n' +  \
+    #                 '--save_best' + '\n' + \
+    #                 '--seed %d' % seed
 
-                print(command)
+    #             print(command)
 
-                args = shlex.split(command)
-                log = subprocess.Popen(args)
-                log.wait()
-                logs.append(log)
+    #             args = shlex.split(command)
+    #             log = subprocess.Popen(args)
+    #             log.wait()
+    #             logs.append(log)
     
     for log in logs:
         log.wait()
