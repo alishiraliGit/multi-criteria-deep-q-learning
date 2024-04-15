@@ -3,15 +3,15 @@ import shlex
 
 
 if __name__ == '__main__':
-    n = 7
-    seeds = range(3 + 1, 3 + n + 1)
+    n = 10
+    seeds = range(1, n + 1)
 
     lr = 1e-5
     tuf = 1000
 
     cql_alpha = 0.001
 
-    consistency_alphas = [20, 40, 80]
+    consistency_alphas = [20, 40, 80, 160]
 
     r = 10
     w_bound = [r]*5

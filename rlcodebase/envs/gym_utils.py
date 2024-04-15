@@ -8,7 +8,7 @@ from gym.envs import registry
 # Register gym envs
 ###################
 
-def register_env(env_name, file_name):
+def register_lunar_lander_env(env_name, file_name):
     if env_name not in registry:
         register(
             id=env_name,
@@ -18,19 +18,30 @@ def register_env(env_name, file_name):
         )
 
 
+def register_sepsis_sim_env(env_name, file_name):
+    if env_name not in registry:
+        register(
+            id=env_name,
+            entry_point='rlcodebase.envs.%s:SepsisSimWrapper' % file_name,
+        )
+
+
 def register_custom_envs():
-    register_env('LunarLander-v3', 'lunar_lander_v3')
-    register_env('LunarLander-2211', 'lunar_lander_2211')
-    register_env('LunarLander-2151', 'lunar_lander_2151')
-    register_env('LunarLander-2115', 'lunar_lander_2115')
-    register_env('LunarLander-1251', 'lunar_lander_1251')
-    register_env('LunarLander-1215', 'lunar_lander_1215')
-    register_env('LunarLander-1155', 'lunar_lander_1155')
-    register_env('LunarLander-Sparse', 'lunar_lander_0000')
-    register_env('LunarLander-Customizable', 'lunar_lander_customizable_rew_weights')
-    register_env('LunarLander-MultiReward', 'lunar_lander_multi_rew')
-    register_env('LunarLander-MultiInterReward', 'lunar_lander_multi_inter_rew')
-    register_env('LunarLander-MultiInterRewardNoise', 'lunar_lander_multi_inter_rew_noise')
+    register_lunar_lander_env('LunarLander-v3', 'lunar_lander_v3')
+    register_lunar_lander_env('LunarLander-2211', 'lunar_lander_2211')
+    register_lunar_lander_env('LunarLander-2151', 'lunar_lander_2151')
+    register_lunar_lander_env('LunarLander-2115', 'lunar_lander_2115')
+    register_lunar_lander_env('LunarLander-1251', 'lunar_lander_1251')
+    register_lunar_lander_env('LunarLander-1215', 'lunar_lander_1215')
+    register_lunar_lander_env('LunarLander-1155', 'lunar_lander_1155')
+    register_lunar_lander_env('LunarLander-Sparse', 'lunar_lander_0000')
+    register_lunar_lander_env('LunarLander-Customizable', 'lunar_lander_customizable_rew_weights')
+    register_lunar_lander_env('LunarLander-MultiReward', 'lunar_lander_multi_rew')
+    register_lunar_lander_env('LunarLander-MultiInterReward', 'lunar_lander_multi_inter_rew')
+    register_lunar_lander_env('LunarLander-MultiInterRewardNoise', 'lunar_lander_multi_inter_rew_noise')
+
+    register_sepsis_sim_env('SepsisSim-MultiReward', 'sepsissimwrapper_multi_rew')
+    register_sepsis_sim_env('SepsisSim-Customizable', 'sepsissimwrapper_customizable_rew_weights')
 
 
 ###################
@@ -40,16 +51,18 @@ def register_custom_envs():
 def init_gym_and_update_params(params):
     """
     Update
-    - ep_lem
+    - ep_len
     - agent_params: discrete, ac_dim, ob_dim, re_dim
     """
+
     # Make the gym environment
     register_custom_envs()
 
     env = gym.make(params['env_name'])
 
     # Set env reward weights
-    if params['env_name'] == 'LunarLander-Customizable' and params['env_rew_weights'] is not None:
+    if (params['env_name'] == 'LunarLander-Customizable' or params['env_name'] == 'SepsisSim-Customizable') \
+            and params['env_rew_weights'] is not None:
         env.set_rew_weights(params['env_rew_weights'])
     
     # Set env noise level
@@ -61,7 +74,7 @@ def init_gym_and_update_params(params):
         env = add_wrappers(env, params['env_wrappers'])
 
     # Set random seed
-    env.seed(params['seed'])
+    env.seed(seed=params['seed'])
 
     # Update maximum length for episodes
     params['ep_len'] = params['ep_len'] or env.spec.max_episode_steps
@@ -98,7 +111,6 @@ class ReturnWrapper(gym.Wrapper):
 
 
 def add_wrappers(env, wrappers_func):
-    print(type(wrappers))
     env = wrappers.RecordEpisodeStatistics(env, deque_size=1000)
     env = ReturnWrapper(env)
     env = wrappers_func(env)

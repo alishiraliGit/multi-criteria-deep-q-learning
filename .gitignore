@@ -7,3 +7,4 @@ virtualenv
 *.data
 old_figs
 old_data
+ext

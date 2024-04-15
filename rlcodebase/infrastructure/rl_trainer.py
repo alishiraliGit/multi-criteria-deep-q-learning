@@ -3,7 +3,7 @@ import pickle
 import sys
 import time
 import numpy as np
-from scipy.stats import spearmanr, ttest_ind
+from scipy.stats import spearmanr
 import torch
 
 from rlcodebase.eval import metrics
@@ -51,7 +51,6 @@ class RLTrainer(object):
             self.env = init_gym_and_update_params(params)
         else:
             self.env, self.train_paths, self.test_paths = init_mimic_and_update_params(params)
-        
 
         #############
         # AGENT
@@ -81,7 +80,7 @@ class RLTrainer(object):
 
         for itr in range(n_iter):
             if itr % print_period == 0:
-                print("\n\n********** Iteration %i ************" % itr)
+                print('\n\n********** Iteration %i ************' % itr)
 
             # Decide if metrics should be logged
             if itr % self.params['scalar_log_freq'] == 0 and self.params['scalar_log_freq'] != -1:
@@ -134,7 +133,7 @@ class RLTrainer(object):
 
             # Train agent (using sampled data from replay buffer)
             if itr % print_period == 0:
-                print("\nTraining agent...")
+                print('\nTraining agent...')
 
             all_logs = self.train_agent()
 
@@ -225,15 +224,11 @@ class RLTrainer(object):
     def perform_dqn_logging(self, all_logs):
         last_log = all_logs[-1]
 
-        #print(self.params['env_name'])
-        #print(self.params['mdqn'])
-        #print(self.params['emdqn'])
-
-        if self.params['env_name'] != 'LunarLander-MultiInterRewardNoise' and self.params['mdqn'] or self.params['emdqn']:
+        if self.params['env_name'] != 'LunarLander-MultiInterRewardNoise' and \
+                (self.params['mdqn'] or self.params['emdqn']):
             episode_rewards = self.env.episode_final_rewards
         else:
             episode_rewards = self.env.get_episode_rewards()
-            #print(episode_rewards)
 
         if len(episode_rewards) > 0:
             self.mean_episode_reward = np.mean(episode_rewards[-100:])

@@ -25,7 +25,7 @@ def main():
     # Env
     parser.add_argument('--env_name', type=str, default='LunarLander-Customizable')
     parser.add_argument('--env_rew_weights', type=float, nargs='*', default=None)
-    parser.add_argument('--env_noise_level', type=float, nargs='*', default=0)
+    parser.add_argument('--env_noise_level', type=float, nargs='*', default=None)
 
     # Batch size
     parser.add_argument('--batch_size', type=int, default=32)

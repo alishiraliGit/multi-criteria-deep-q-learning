@@ -17,6 +17,7 @@ from rlcodebase.critics.dqn_critic import DQNCritic
 
 from tqdm import tqdm
 
+
 class RLEvaluator(object):
 
     def __init__(self, params):

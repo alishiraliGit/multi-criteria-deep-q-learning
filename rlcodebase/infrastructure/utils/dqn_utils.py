@@ -149,3 +149,16 @@ def mimic_optimizer():
         # TODO: Hard-coded
         learning_rate_schedule=ConstantSchedule(1e-4).value,  # 1e-4
     )
+
+
+###################
+# SepsisSim functions
+###################
+def sepsissim_optimizer():
+    return OptimizerSpec(
+        constructor=optim.Adam,
+        optim_kwargs=dict(
+            lr=1,
+        ),
+        learning_rate_schedule=ConstantSchedule(1e-4).value,
+    )

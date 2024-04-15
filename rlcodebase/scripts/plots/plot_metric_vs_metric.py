@@ -77,6 +77,7 @@ def combine_estimated_metrics(metrics_dicts, metric_name):
     if metric_name == 'WIS' or metric_name == 'FQE':
         mean *= 100/1.155
         std_err *= 100/1.155
+        pass
     if metric_name == 'Accuracy':
         mean *= 100
         std_err *= 100
@@ -138,7 +139,7 @@ def plot_linear_fit(x, y, cl, x_range=None, alpha=1.):
 
 if __name__ == '__main__':
     # ----- Settings ------
-    do_save = False
+    do_save = True
 
     load_path = 'data'
     save_path = 'figs'
@@ -147,8 +148,8 @@ if __name__ == '__main__':
     # metric_1 = 'Recall'
 
     # metric_2 = 'Diff_Survival_Quantiles'
-    # metric_2 = 'WIS'
-    metric_2 = 'FQE'
+    metric_2 = 'WIS'
+    # metric_2 = 'FQE'
     # metric_2 = 'Num_of_Available_Actions'
 
     x_label = '% of actions similar to physicians'
@@ -162,7 +163,7 @@ if __name__ == '__main__':
 
     lr1 = 1e-5
     tuf1 = 1000
-    r1 = 5
+    r1 = 10
 
     lr2 = 1e-4
     tuf2 = 8000
@@ -170,7 +171,7 @@ if __name__ == '__main__':
     cql_alpha = 0.001
 
     # Eval changing param
-    consistency_alphas = [20, 40, 80]  # [5, 10, 20, 40]
+    consistency_alphas = [20, 40, 160]
 
     # Eval prefixes
     eval_prefixes = \
@@ -250,8 +251,8 @@ if __name__ == '__main__':
         capsize=7
     )
 
-    plot_linear_fit(baseline_avg_metric_1, baseline_avg_metric_2, 'k', x_range=[7, 37], alpha=0.6)
-    plot_linear_fit(eval_avg_metric_1, eval_avg_metric_2, 'r', x_range=[7, 28], alpha=0.6)
+    plot_linear_fit(baseline_avg_metric_1, baseline_avg_metric_2, 'k', x_range=[7, 30], alpha=0.6)
+    plot_linear_fit(eval_avg_metric_1, eval_avg_metric_2, 'r', x_range=[7, 25], alpha=0.6)
 
     plt.legend(['CQL', 'Pruned CQL'])
 

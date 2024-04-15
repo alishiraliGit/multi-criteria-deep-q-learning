@@ -21,7 +21,7 @@ if __name__ == '__main__':
     r = 10
 
     prefixes_ = ['v6_var1c_*_offline_cmdqn_lr%.0e_tuf%g_cql%g_alpha%g_r%g_MIMIC'
-                 % (lr, tuf, cql_alpha, alpha, r) for alpha in [20, 40, 80]]
+                 % (lr, tuf, cql_alpha, alpha, r) for alpha in [20, 40, 80, 160]]
 
     n_color_ = np.maximum(int(len(prefixes_)), 2)
     color_ = lambda cnt: ((cnt % n_color_)/(n_color_ - 1), 0, 1 - (cnt % n_color_)/(n_color_ - 1))

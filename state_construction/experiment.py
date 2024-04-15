@@ -44,8 +44,8 @@ class DQNExperiment(object):
             self.all_epoch_validation_steps = []
             self.all_epoch_loss = []
             self.all_epoch_validation_loss = []
-        self.data_loader_train.reset(shuffle=True, pos_samples_in_minibatch=self.ps, neg_samples_in_minibatch=self.ns)
-        self.data_loader_validation.reset(shuffle=False, pos_samples_in_minibatch=0, neg_samples_in_minibatch=0)
+        self.data_loader_train.reset()
+        self.data_loader_validation.reset()
         for epoch in range(self.curr_epoch, number):
             print()
             print('>>>>> Experiment ' + 'Q-' + self.q_network.sided_Q + ' Epoch ' + str(epoch + 1) + '/' + str(number))
@@ -61,8 +61,8 @@ class DQNExperiment(object):
                 epoch_steps += len(s)
                 loss = self.q_network.learn(s, actions, rewards, next_s, terminals)
                 epoch_loss += loss
-            self.data_loader_train.reset(shuffle=True, pos_samples_in_minibatch=self.ps, neg_samples_in_minibatch=self.ns)
-            self.data_loader_validation.reset(shuffle=False, pos_samples_in_minibatch=0, neg_samples_in_minibatch=0)
+            self.data_loader_train.reset()
+            self.data_loader_validation.reset()
             self.all_epoch_loss.append(epoch_loss/epoch_steps)
             self.all_epoch_steps.append(epoch_steps)
             if (epoch + 1)% self.saving_period == 0:

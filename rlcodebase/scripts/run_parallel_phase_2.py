@@ -3,7 +3,7 @@ import shlex
 
 
 if __name__ == '__main__':
-    n = 3
+    n = 10
     seeds = range(1, n + 1)
 
     lr1 = 1e-5
@@ -14,7 +14,7 @@ if __name__ == '__main__':
     tuf2 = 8000
 
     cql_alpha = 0.001
-    consistency_alphas = [20, 40, 80]
+    consistency_alphas = [20, 40, 80, 160]
 
     logs = []
     for consistency_alpha in consistency_alphas:

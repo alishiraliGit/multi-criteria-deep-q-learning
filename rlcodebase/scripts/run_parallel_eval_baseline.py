@@ -2,7 +2,7 @@ import subprocess
 import shlex
 
 if __name__ == '__main__':
-    n = 3
+    n = 10
     seeds = range(1, n + 1)
 
     v = 6
@@ -10,8 +10,7 @@ if __name__ == '__main__':
     lr = 1e-4
     tuf = 8000
 
-    # cql_alphas = [0.001, 0.003, 0.01]
-    cql_alphas = [0.001, 0.005, 0.01]  # [0.001, 0.003, 0.005, 0.01, 0.03, 0.1, 0.3, 1]
+    cql_alphas = [0.001, 0.005, 0.01]
 
     r = 0
 
