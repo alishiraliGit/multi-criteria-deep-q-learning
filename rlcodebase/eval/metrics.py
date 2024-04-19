@@ -10,7 +10,7 @@ from tqdm import tqdm
 from matplotlib import pyplot as plt
 
 from rlcodebase.infrastructure.utils import pytorch_utils as ptu
-from rlcodebase.infrastructure.utils.rl_utils import convert_listofrollouts
+from rlcodebase.infrastructure.utils.rl_utils import flatten_listofrollouts
 from rlcodebase.infrastructure.utils.dqn_utils import gather_by_actions
 from rlcodebase.eval.behavior_policy import BehaviorPolicy
 from rlcodebase.infrastructure.replay_buffer import MemoryOptimizedReplayBuffer
@@ -141,7 +141,7 @@ class FQE(EvalMetricBase):
     def fit(self, train_paths, test_paths, params, eval_policy):
         debug = False
         if debug:
-            ob_n, _, _, terminal_n, _, _ = convert_listofrollouts(test_paths)
+            ob_n, _, _, terminal_n, _, _ = flatten_listofrollouts(test_paths)
             ac_n = eval_policy.get_actions(ob_n)
 
         # Init.
@@ -216,7 +216,7 @@ class WIS(EvalMetricBase):
         self.behavior_policy = BehaviorPolicy()
 
     def fit(self, train_paths, test_paths, params, eval_policy):
-        ob_no, opt_ac_n, _, _, _, _ = convert_listofrollouts(train_paths)
+        ob_no, opt_ac_n, _, _, _, _ = flatten_listofrollouts(train_paths)
 
         self.ac_dim = np.max(opt_ac_n) + 1
 

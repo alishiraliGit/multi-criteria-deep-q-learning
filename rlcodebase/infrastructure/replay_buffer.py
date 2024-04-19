@@ -1,7 +1,7 @@
 import random
 import numpy as np
 
-from rlcodebase.infrastructure.utils.rl_utils import sample_n_unique, convert_listofrollouts, add_noise, get_pathlength
+from rlcodebase.infrastructure.utils.rl_utils import sample_n_unique, flatten_listofrollouts, add_noise, get_pathlength
 
 
 class ReplayBuffer(object):
@@ -24,7 +24,7 @@ class ReplayBuffer(object):
 
         # convert new rollouts into their component arrays, and append them onto our arrays
         observations, actions, next_observations, terminals, concatenated_rews, unconcatenated_rews = \
-            convert_listofrollouts(paths)
+            flatten_listofrollouts(paths)
 
         if noised:
             observations = add_noise(observations)
@@ -82,7 +82,7 @@ class ReplayBuffer(object):
                 num_datapoints_so_far += get_pathlength(recent_rollout)
             rollouts_to_return = self.paths[-num_recent_rollouts_to_return:]
             observations, actions, next_observations, terminals, concatenated_rews, unconcatenated_rews = \
-                convert_listofrollouts(rollouts_to_return)
+                flatten_listofrollouts(rollouts_to_return)
             return observations, actions, unconcatenated_rews, next_observations, terminals
 
 
@@ -277,7 +277,7 @@ class MemoryOptimizedReplayBuffer(object):
 
         # convert new rollouts into their component arrays, and append them onto our arrays
         observations, actions, next_observations, terminals, concatenated_rews, unconcatenated_rews = \
-            convert_listofrollouts(paths)
+            flatten_listofrollouts(paths)
 
         # add data
         if len(observations.shape) == 1:

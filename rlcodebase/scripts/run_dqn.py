@@ -23,7 +23,7 @@ def main():
     parser.add_argument('--exp_name', type=str)
 
     # Env
-    parser.add_argument('--env_name', type=str, default='LunarLander-Customizable')
+    parser.add_argument('--env_name', type=str)
     parser.add_argument('--env_rew_weights', type=float, nargs='*', default=None)
     parser.add_argument('--env_noise_level', type=float, nargs='*', default=None)
 
@@ -31,14 +31,15 @@ def main():
     parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--eval_batch_size', type=int, default=1000)
 
-    # Update frequencies
-    parser.add_argument('--num_agent_train_steps_per_iter', type=int, default=1)
-    parser.add_argument('--num_critic_updates_per_agent_update', type=int, default=1)
-    parser.add_argument('--target_update_freq', type=int, default=3000)
-
     # Q-learning params
     parser.add_argument('--double_q', action='store_true')
     parser.add_argument('--arch_dim', type=int, default=64)
+    parser.add_argument('--gamma', type=float, default=1.0)
+
+    # Q-learning update frequencies
+    parser.add_argument('--num_agent_train_steps_per_iter', type=int, default=1)
+    parser.add_argument('--num_critic_updates_per_agent_update', type=int, default=1)
+    parser.add_argument('--target_update_freq', type=int, default=3000)
 
     # Pruning
     parser.add_argument('--pruning_file_prefix', type=str, default=None)
@@ -62,6 +63,10 @@ def main():
     parser.add_argument('--w_bound', type=float, nargs='*', default=1.0,
                         help='Look at draw_w in linearly_weighted_argmax_policy.')
 
+    # Offline RL params
+    parser.add_argument('--offline', action='store_true')
+    parser.add_argument('--buffer_path', type=str, default=None)
+
     # CQL
     parser.add_argument('--add_cql_loss', action='store_true', help='Adds CQL loss to MDQN and EMDQN.')
     parser.add_argument('--cql_alpha', type=float, default=0.2, help='Higher values indicated stronger OOD penalty.')
@@ -73,15 +78,13 @@ def main():
 
     # Logging
     parser.add_argument('--scalar_log_freq', type=int, default=int(5e3))
-    parser.add_argument('--params_log_freq', type=int, default=int(5e3))  # Saves the trained networks
+    parser.add_argument('--params_log_freq', type=int, default=int(5e3), help='Frequency to save the trained networks.')
     parser.add_argument('--save_best', action='store_true')
-
-    # Offline learning params
-    parser.add_argument('--offline', action='store_true')
-    parser.add_argument('--buffer_path', type=str, default=None)
-
-    # Data path formatting
     parser.add_argument('--no_weights_in_path', action='store_true')
+
+    ##################################
+    # Preprocess inputs
+    ##################################
 
     args = parser.parse_args()
 
@@ -90,11 +93,8 @@ def main():
 
     params['train_batch_size'] = params['batch_size']  # Ensure compatibility
 
-    # Decision booleans
+    # Define decision booleans
     customize_rew = False if params['env_rew_weights'] is None else True
-
-    if params['offline'] and params['buffer_path'] is None:
-        raise Exception('Please provide a buffer_path to enable offline learning.')
 
     params['mdqn'] = params['optimistic_mdqn'] or params['diverse_mdqn'] or params['consistent_mdqn']
 
@@ -105,6 +105,10 @@ def main():
     prune_with_emdqn = params['prune_with_emdqn']
 
     params['prune'] = prune_with_idqn or prune_with_mdqn or prune_with_emdqn
+
+    # Assert inputs
+    if params['offline'] and params['buffer_path'] is None:
+        raise Exception('Please provide a buffer_path to enable offline learning.')
 
     ##################################
     # Set system variables
@@ -119,9 +123,7 @@ def main():
     # Create directory for logging
     ##################################
     data_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'data')
-
-    if not (os.path.exists(data_path)):
-        os.makedirs(data_path)
+    os.makedirs(data_path, exist_ok=True)
 
     if customize_rew and not params['no_weights_in_path']:
         logdir = args.exp_name + '_' + args.env_name \
@@ -132,10 +134,9 @@ def main():
 
     logdir = os.path.join(data_path, logdir)
     params['logdir'] = logdir
-    if not(os.path.exists(logdir)):
-        os.makedirs(logdir)
+    os.makedirs(logdir, exist_ok=False)
 
-    print('\n\n\nLOGGING TO: ', logdir, '\n\n\n')
+    print(f'\n\n\nLOGGING TO: {logdir} \n\n\n')
 
     ##################################
     # Get env specific arguments
@@ -148,7 +149,7 @@ def main():
             params[k] = v
 
     ##################################
-    # Pruning (if requested)
+    # Prune (if requested)
     ##################################
     if params['prune']:
         pruner = None

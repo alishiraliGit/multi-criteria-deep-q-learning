@@ -8,7 +8,7 @@ from sklearn.linear_model import LogisticRegression
 
 from rlcodebase import configs
 from rlcodebase.envs import mimic_utils
-from rlcodebase.infrastructure.utils.rl_utils import convert_listofrollouts
+from rlcodebase.infrastructure.utils.rl_utils import flatten_listofrollouts
 from rlcodebase.infrastructure.utils import pytorch_utils as ptu
 from rlcodebase.infrastructure.utils.dqn_utils import gather_by_actions
 from rlcodebase.policies.base_policy import BasePolicy
@@ -63,8 +63,8 @@ if __name__ == '__main__':
     env_dims = mimic_utils.get_mimic_dims(train_paths)
 
     # ----- Prepare data for classification -----
-    ob_tr_no, ac_tr_n, _, _, _, _ = convert_listofrollouts(train_paths)
-    ob_te_no, ac_te_n, _, _, _, _ = convert_listofrollouts(test_paths)
+    ob_tr_no, ac_tr_n, _, _, _, _ = flatten_listofrollouts(train_paths)
+    ob_te_no, ac_te_n, _, _, _, _ = flatten_listofrollouts(test_paths)
     ac_tr_n = ac_tr_n.astype(int)
     ac_te_n = ac_te_n.astype(int)
 

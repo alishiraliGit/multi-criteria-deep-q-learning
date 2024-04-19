@@ -1,4 +1,6 @@
 """This file includes a collection of utility functions that are useful for implementing DQN."""
+import os
+import glob
 from collections import namedtuple
 from typing import List
 
@@ -7,6 +9,7 @@ import torch
 from torch import nn
 import torch.optim as optim
 
+from rlcodebase.infrastructure.utils.general_utils import escape_bracket_globe
 from rlcodebase.infrastructure.utils import pytorch_utils as ptu
 from rlcodebase.infrastructure.utils.rl_utils import ConstantSchedule, PiecewiseSchedule
 
@@ -162,3 +165,20 @@ def sepsissim_optimizer():
         ),
         learning_rate_schedule=ConstantSchedule(1e-4).value,
     )
+
+
+###################
+# File management
+###################
+
+def locate_saved_dqn_agent_from_prefix(path, prefix, is_unique=True):
+    prefix = escape_bracket_globe(prefix)
+    folder_paths = glob.glob(os.path.join(path, prefix + '*'))
+    file_paths = [os.path.join(f, 'dqn_agent.pt') for f in folder_paths]
+
+    if is_unique:
+        assert len(file_paths) == 1, 'found %d files!' % len(folder_paths)
+        return file_paths[0]
+
+    else:
+        return file_paths
