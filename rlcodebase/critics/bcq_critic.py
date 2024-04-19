@@ -162,7 +162,10 @@ class BCQCritic(BaseCritic):
     def qa_values(self, obs):
         obs = ptu.from_numpy(obs)
         q, imt, i = self.q_net(obs)
-        return ptu.to_numpy(q)
+        imt = imt.exp()
+        imt = (imt/imt.max(1, keepdim=True)[0] > self.bcq_thres).float()
+        q = imt * q + (1 - imt) * -1e8
+        return q, imt, i
 
     def save(self, save_path):
         torch.save(

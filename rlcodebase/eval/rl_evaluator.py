@@ -31,6 +31,7 @@ class RLEvaluator(object):
         # Logging
         self.log_dir = self.params['logdir']
         self.log_freq = self.params['log_freq']
+        self.bcq = self.params['bcq']
 
         # Set random seeds
         seed = self.params['seed']
@@ -111,7 +112,11 @@ class RLEvaluator(object):
 
                 # Get the Q-values
                 if eval_critic is not None:
-                    qa_values_na = eval_critic.qa_values(observations)
+                    if self.bcq:
+                        qa_values_na = ptu.to_numpy(eval_critic.qa_values(observations)[0])
+
+                    else:
+                        qa_values_na = eval_critic.qa_values(observations)
 
                     q_values = ptu.to_numpy(gather_by_actions(
                         ptu.from_numpy(qa_values_na),
@@ -134,7 +139,8 @@ class RLEvaluator(object):
                 all_observations.append(observations)
                 all_available_actions.extend(available_actions)
                 all_available_actions_t.append(available_actions)
-                all_action_flags.append(flags)
+                if eval_pruner is not None:
+                    all_action_flags.append(flags)
                 all_actions.append(actions)
                 all_rewards.append(rewards)
                 all_terminals.append(terminals)

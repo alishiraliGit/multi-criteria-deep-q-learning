@@ -53,6 +53,12 @@ def main():
     parser.add_argument('--offline', action='store_true')
     parser.add_argument('--buffer_path', type=str, default=None)
 
+    #bcq?
+    parser.add_argument('--bcq', action='store_true', help='Defines that discrete BCQ model will bet trained')
+    parser.add_argument('--bcq_thres', type=float, default=0.3, help='Higher values indicated stronger OOD penalty.')
+    parser.add_argument('--polyak_target_update', action='store_true', help='Defines whether we use a Polyak target update')
+    parser.add_argument('--tau', type=float, default=0.005, help='Higher values indicated faster target network update.')
+
     args = parser.parse_args()
 
     # Convert to dictionary
@@ -103,7 +109,7 @@ def main():
     ##################################
     eval_folder_path = glob.glob(os.path.join(data_path, params['baseline_file_prefix'] + '*'))[0]
     eval_file_path = os.path.join(eval_folder_path, 'dqn_agent.pt')
-    eval_agent = LoadedDQNAgent(file_path=eval_file_path)
+    eval_agent = LoadedDQNAgent(file_path=eval_file_path, bcq=params['bcq'])
     eval_policy = eval_agent.actor
     eval_critic = eval_agent.critic
 

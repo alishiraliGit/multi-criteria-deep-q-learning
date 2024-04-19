@@ -151,10 +151,13 @@ class DQNAgent(object):
 
 
 class LoadedDQNAgent(BaseAgent):
-    def __init__(self, file_path, **kwargs):
+    def __init__(self, file_path, bcq=False, **kwargs):
         super().__init__(**kwargs)
 
-        self.critic = DQNCritic.load(file_path)
+        if bcq:
+            self.critic = BCQCritic.load(file_path)
+        else:
+            self.critic = DQNCritic.load(file_path)
         self.actor = self.critic.get_actor_class()(self.critic)
 
     def train(self) -> dict:

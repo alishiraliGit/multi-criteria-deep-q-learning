@@ -46,6 +46,7 @@ class RLTrainer(object):
         #############
         self.offline = params['offline']
         self.params['agent_params']['offline'] = params['offline']
+        self.bcq = params['bcq']
 
         if not self.offline:
             self.env = init_gym_and_update_params(params)
@@ -332,7 +333,10 @@ class RLTrainer(object):
             re_mort_n = eval_path['sparse_90d_rew']
 
             # Get the Q-values
-            qa_values_na = self.agent.critic.qa_values(obs_n)
+            if self.bcq:
+                qa_values_na = ptu.to_numpy(self.agent.critic.qa_values(obs_n)[0])
+            else:    
+                qa_values_na = self.agent.critic.qa_values(obs_n)
 
             qa_values_na = ptu.from_numpy(qa_values_na)
             ac_n = ptu.from_numpy(ac_n).to(torch.long)

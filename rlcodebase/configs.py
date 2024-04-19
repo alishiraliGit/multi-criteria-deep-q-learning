@@ -37,7 +37,7 @@ def get_env_kwargs(env_name):
             'frame_history_len': 1,
             'grad_norm_clipping': 10,
             'lander': False,
-            'num_timesteps': 80001,  # default: 80001
+            'num_timesteps': 250000, #80001,  # default: 80001
             'env_wrappers': empty_wrapper,
             'exploration_schedule': None,
         }

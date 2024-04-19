@@ -102,7 +102,8 @@ class FQE(EvalMetricBase):
 
     def fit_one_iter(self, ob_no, opt_ac_na, next_ob_no, reward_n, terminal_n, eval_policy):
         # Get policy actions
-        ac_tp1_na = eval_policy.get_actions(next_ob_no)
+        ac_tp1_na = np.array(eval_policy.get_actions(next_ob_no))
+        print(ac_tp1_na)
 
         # Move to torch
         ac_tp1_na = ptu.from_numpy(ac_tp1_na).to(torch.long)
@@ -462,7 +463,7 @@ def get_default_metrics():
 def get_default_offline_metrics():
     return [
         Accuracy(), CurrentPolicyReturn(), RhoBinned(bins=100), DiffSurvivalQuantiles(q=0.25, th=0), TTest(th=0),
-        WIS(eps=0.01), FQE(n_iter=80001)
+        WIS(eps=0.01) #, FQE(n_iter=80001)
     ]
 
 

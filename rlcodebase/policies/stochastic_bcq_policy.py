@@ -24,12 +24,15 @@ class BCQPolicy(BasePolicy):
             ob_no = ob_no[np.newaxis, :]
         if np.random.uniform(0,1) > self.eval_eps:
             with torch.no_grad():
-                state = torch.FloatTensor(ob_no).reshape(self.critic.ob_dim).to(ptu.device)
-                q, imt, i = self.critic.qnet(state)
+                # print(ob_no.shape)
+                # state = torch.FloatTensor(ob_no).reshape(self.critic.ob_dim).to(ptu.device)
+                q, imt, i = self.critic.qa_values(ob_no)
                 imt = imt.exp()
                 imt = (imt/imt.max(1, keepdim=True)[0] > self.threshold).float()
+                q, imt, i = ptu.to_numpy(q), ptu.to_numpy(imt), ptu.to_numpy(i)
 				# Use large negative number to mask actions from argmax
-                return int((imt * q + (1. - imt) * -1e8).argmax(1))
+                print((imt * q + (1. - imt) * -1e8).argmax(1))
+                return np.array((imt * q + (1. - imt) * -1e8).argmax(1))
         else:
             return np.random.randint(self.critic.ac_dim)
 
