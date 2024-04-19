@@ -3,8 +3,9 @@ import numpy as np
 from rlcodebase.infrastructure.replay_buffer import MemoryOptimizedReplayBuffer
 from rlcodebase.agents.base_agent import BaseAgent
 from rlcodebase.policies.argmax_policy import PrunedArgMaxPolicy
+from rlcodebase.policies.stochastic_bcq_policy import BCQPolicy
 from rlcodebase.critics.dqn_critic import DQNCritic, PrunedDQNCritic, MDQNCritic, ExtendedMDQNCritic
-
+from rlcodebase.critics.bcq_critic import BCQCritic
 
 class DQNAgent(object):
     def __init__(self, env, agent_params):
@@ -14,6 +15,8 @@ class DQNAgent(object):
         self.offline = agent_params['offline']
         self.mdqn = agent_params['mdqn']
         self.emdqn = agent_params['emdqn']
+        self.emdqn = agent_params['emdqn']
+        self.bcq = agent_params['bcq']
 
         self.agent_params = agent_params
 
@@ -45,6 +48,9 @@ class DQNAgent(object):
                 self.critic = MDQNCritic(agent_params, self.optimizer_spec)
             elif self.emdqn:
                 self.critic = ExtendedMDQNCritic(agent_params, self.optimizer_spec)
+            elif self.bcq:
+                self.critic = BCQCritic(agent_params, self.optimizer_spec)
+                self.actor = BCQPolicy(self.critic)
             else:
                 self.critic = DQNCritic(agent_params, self.optimizer_spec)
 

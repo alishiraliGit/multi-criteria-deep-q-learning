@@ -39,3 +39,42 @@ if __name__ == '__main__':
 
     for log in logs:
         log.wait()
+    
+    """
+    # Discrete BCQ Baseline
+
+    ## Training
+
+    'python rlcodebase/scripts/run_dqn.py
+    --exp_name v7_var1c_1_offline_baseline_lr1.0e-4_tuf1_polyak_bcq0.3_r0')
+    --env_name MIMIC-Continuous
+    --env_rew_weights 1 0 0 0 0 
+    --offline --buffer_path "Replay_buffer_extraction/Encoded_paths13_all_rewards_var1.pkl"
+    --bcq --bcq_thres 0.3 --polyak_target_update --tau 0.005
+    --double_q
+    --arch_dim 32
+    --target_update_freq 1
+    --no_weights_in_path
+    --scalar_log_freq 500
+    --params_log_freq 500
+    --save_best
+    --seed 1
+
+    ## Evaluation
+
+    'python rlcodebase/scripts/run_eval_baseline.py 
+    --exp_name v7_var1c_1_offline_baseline_lr1.0e-4_tuf8000_bcq_thres03_r0_eval
+    --env_name MIMIC-Continuous
+    --env_rew_weights 1 0 0 0 0
+    --target_update_freq %g' % tuf 
+    --arch_dim 32
+    --baseline_file_prefix v%d_var1c_%d_offline_baseline_lr%.0e_tuf%g_cql%g_r%g_MIMIC' \
+                % (v, seed, lr, tuf, cql_alpha, r) + '\n' + \
+    --offline --buffer_path "Replay_buffer_extraction/Encoded_paths13_all_rewards_var1.pkl"
+    --log_freq 1
+    --seed 1
+    
+    
+    
+    
+    """

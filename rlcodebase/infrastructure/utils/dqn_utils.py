@@ -81,7 +81,7 @@ def gather_by_e(qa_values_nre: torch.tensor, ac_n: torch.tensor) -> torch.tensor
 # Lander functions
 ###################
 
-def create_lander_q_network(ob_dim, num_actions, num_rewards=1, ex_dim=1, d=64):
+def create_lander_q_network(ob_dim, num_actions, num_rewards=1, ex_dim=1, d=64, bcq=False):
     if ex_dim > 1:
         output_layer = ptu.MultiDimLinear(d, (num_actions, num_rewards, ex_dim))
     else:
@@ -89,7 +89,6 @@ def create_lander_q_network(ob_dim, num_actions, num_rewards=1, ex_dim=1, d=64):
             output_layer = nn.Linear(d, num_actions)
         else:
             output_layer = ptu.MultiDimLinear(d, (num_actions, num_rewards))
-
     return nn.Sequential(
         nn.Linear(ob_dim, d),
         nn.ReLU(),
@@ -97,7 +96,6 @@ def create_lander_q_network(ob_dim, num_actions, num_rewards=1, ex_dim=1, d=64):
         nn.ReLU(),
         output_layer,
     )
-
 
 def lander_optimizer():
     return OptimizerSpec(
@@ -122,7 +120,7 @@ def lander_exploration_schedule(num_timesteps):
 # MIMIC functions
 ###################
 
-def create_mimic_q_network(ob_dim, num_actions, num_rewards=1, ex_dim=1, d=64):
+def create_mimic_q_network(ob_dim, num_actions, num_rewards=1, ex_dim=1, d=64, bcq=False):
     if ex_dim > 1:
         output_layer = ptu.MultiDimLinear(d, (num_actions, num_rewards, ex_dim))
     else:

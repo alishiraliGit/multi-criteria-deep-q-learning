@@ -66,6 +66,13 @@ def main():
     parser.add_argument('--add_cql_loss', action='store_true', help='Adds CQL loss to MDQN and EMDQN.')
     parser.add_argument('--cql_alpha', type=float, default=0.2, help='Higher values indicated stronger OOD penalty.')
 
+    # BCQ
+    parser.add_argument('--bcq', action='store_true', help='Defines that discrete BCQ model will bet trained')
+    parser.add_argument('--bcq_thres', type=float, default=0.3, help='Higher values indicated stronger OOD penalty.')
+    parser.add_argument('--polyak_target_update', action='store_true', help='Defines whether we use a Polyak target update')
+    parser.add_argument('--tau', type=float, default=0.005, help='Higher values indicated faster target network update.')
+
+
     # System
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--no_gpu', action='store_true')
@@ -128,6 +135,8 @@ def main():
                 + '-'.join([str(w) for w in params['env_rew_weights']]) \
                 + '_' + time.strftime('%d-%m-%Y_%H-%M-%S')
     else:
+        print(args.exp_name)
+        print(args.env_name)
         logdir = args.exp_name + '_' + args.env_name + '_' + time.strftime('%d-%m-%Y_%H-%M-%S')
 
     logdir = os.path.join(data_path, logdir)
@@ -172,7 +181,7 @@ def main():
 
     ##################################
     # Run Q-learning
-    ##################################
+    ##################################    
     params['agent_class'] = DQNAgent
     params['agent_params'] = params
 
